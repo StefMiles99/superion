@@ -37,3 +37,7 @@ class UnauthorizedError(DomainError):
 
 class ConflictError(DomainError):
     """Conflicto de estado — HTTP 409."""
+
+
+class ServiceUnavailableError(DomainError):
+    """Servicio externo no disponible — HTTP 503."""

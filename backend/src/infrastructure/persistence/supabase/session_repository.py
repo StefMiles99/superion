@@ -22,6 +22,9 @@ class SupabaseSessionRepository:
             f"SupabaseSessionRepository.get_by_id_for_technician — {_MSG}"
         )
 
+    async def get_by_id(self, session_id: str) -> MaintenanceSession | None:
+        raise NotImplementedError(f"SupabaseSessionRepository.get_by_id — {_MSG}")
+
     async def get_active_for_work_order(
         self,
         work_order_id: str,

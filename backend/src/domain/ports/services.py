@@ -121,3 +121,32 @@ class IRerankerService(Protocol):
         question: str,
         candidates: list[tuple[object, float]],
     ) -> list[tuple[object, float]]: ...
+
+
+class IIntentClassifier(Protocol):
+    """Clasifica utterance → intent."""
+
+    def classify(self, text: str) -> tuple[str, float]: ...
+
+
+class ILangGraphClient(Protocol):
+    """Cliente LangGraph — mock o real."""
+
+    async def invoke(
+        self,
+        *,
+        session_id: str,
+        tool_name: str,
+        arguments: dict[str, object],
+        current_user: object,
+    ) -> dict[str, object]: ...
+
+    async def ensure_session(self, session_id: str, *, current_step_index: int = 0) -> None: ...
+
+    async def get_state(self, session_id: str) -> dict[str, object] | None: ...
+
+
+class ISignatureValidator(Protocol):
+    """Validación HMAC de webhooks."""
+
+    def validate(self, *, payload: bytes, signature_header: str | None) -> None: ...

@@ -83,6 +83,8 @@ class ISessionRepository(Protocol):
         technician_id: str,
     ) -> MaintenanceSession | None: ...
 
+    async def get_by_id(self, session_id: str) -> MaintenanceSession | None: ...
+
     async def get_active_for_work_order(
         self,
         work_order_id: str,

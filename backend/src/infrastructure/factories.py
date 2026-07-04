@@ -556,6 +556,125 @@ def get_rag_query_use_case():
     )
 
 
+def get_signature_validator():
+    from infrastructure.security.signature import HmacSignatureValidator
+
+    cfg = get_settings()
+    return HmacSignatureValidator(
+        secret=cfg.ELEVENLABS_WEBHOOK_SECRET,
+        window_seconds=cfg.ELEVENLABS_SIGNATURE_WINDOW_SECONDS,
+        clock=get_clock(cfg),
+    )
+
+
+def get_intent_classifier():
+    from domain.services.intent_classifier import MockIntentClassifier
+
+    cfg = get_settings()
+    if cfg.INTENT_CLASSIFIER == "mock":
+        return MockIntentClassifier()
+    raise ValueError(f"INTENT_CLASSIFIER={cfg.INTENT_CLASSIFIER} no soportado")
+
+
+def get_tool_query_manual_use_case():
+    from application.use_cases.voice.tool_query_manual import ToolQueryManualUseCase
+
+    cfg = get_settings()
+    return ToolQueryManualUseCase(
+        sessions=get_session_repository(cfg),
+        work_orders=get_work_order_repository(cfg),
+        assets=get_asset_repository(cfg),
+        rag_query=get_rag_query_use_case(),
+        append_events=get_append_event_use_case(),
+    )
+
+
+def get_tool_mark_step_complete_use_case():
+    from application.use_cases.voice.tool_mark_step_complete import ToolMarkStepCompleteUseCase
+
+    cfg = get_settings()
+    return ToolMarkStepCompleteUseCase(
+        sessions=get_session_repository(cfg),
+        transition_step=get_transition_step_use_case(),
+        append_events=get_append_event_use_case(),
+    )
+
+
+def get_tool_request_photo_use_case():
+    from application.use_cases.voice.tool_request_photo import ToolRequestPhotoUseCase
+
+    return ToolRequestPhotoUseCase(
+        sessions=get_session_repository(),
+        append_events=get_append_event_use_case(),
+    )
+
+
+def get_tool_add_finding_use_case():
+    from application.use_cases.voice.tool_add_finding import ToolAddFindingUseCase
+
+    return ToolAddFindingUseCase(
+        sessions=get_session_repository(),
+        append_events=get_append_event_use_case(),
+    )
+
+
+def get_tool_add_measurement_use_case():
+    from application.use_cases.voice.tool_add_measurement import ToolAddMeasurementUseCase
+
+    return ToolAddMeasurementUseCase(
+        sessions=get_session_repository(),
+        append_events=get_append_event_use_case(),
+    )
+
+
+def get_execute_tool_use_case():
+    from application.use_cases.voice.execute_tool import ExecuteToolUseCase
+
+    return ExecuteToolUseCase(
+        query_manual=get_tool_query_manual_use_case(),
+        mark_step_complete=get_tool_mark_step_complete_use_case(),
+        request_photo=get_tool_request_photo_use_case(),
+        add_finding=get_tool_add_finding_use_case(),
+        add_measurement=get_tool_add_measurement_use_case(),
+        transition_step=get_transition_step_use_case(),
+        pause_session=get_pause_session_use_case(),
+    )
+
+
+def get_classify_and_route_use_case():
+    from application.use_cases.voice.classify_and_route import ClassifyAndRouteUseCase
+
+    return ClassifyAndRouteUseCase(
+        sessions=get_session_repository(),
+        classifier=get_intent_classifier(),
+        execute_tool=get_execute_tool_use_case(),
+        add_measurement=get_tool_add_measurement_use_case(),
+    )
+
+
+def get_langgraph_client():
+    from infrastructure.realtime.langgraph_client import MockLangGraphClient
+
+    cfg = get_settings()
+    if cfg.LANGGRAPH == "mock":
+        return MockLangGraphClient.shared(execute_tool=get_execute_tool_use_case())
+    raise ValueError(f"LANGGRAPH={cfg.LANGGRAPH} no soportado")
+
+
+def get_handle_webhook_use_case():
+    from application.use_cases.voice.handle_webhook import HandleWebhookUseCase
+
+    cfg = get_settings()
+    return HandleWebhookUseCase(
+        signature_validator=get_signature_validator(),
+        sessions=get_session_repository(cfg),
+        users=get_user_repository(cfg),
+        classify_and_route=get_classify_and_route_use_case(),
+        pause_session=get_pause_session_use_case(),
+        langgraph=get_langgraph_client(),
+    )
+
+
 async def reset_auth_state() -> None:
     """Resetea repos y blacklist in-memory entre tests."""
     InMemoryUserRepository.reset_singleton()
@@ -571,6 +690,9 @@ async def reset_auth_state() -> None:
     InMemoryManualChunkRepository.reset_singleton()
     InMemoryObjectStorage.reset_singleton()
     InMemoryEventBus.reset_singleton()
+    from infrastructure.realtime.langgraph_client import MockLangGraphClient
+
+    MockLangGraphClient.reset_singleton()
     from interface.ws.manager import ConnectionManager
 
     ConnectionManager.reset_singleton()
@@ -582,4 +704,5 @@ async def reset_auth_state() -> None:
     cfg = get_settings()
     await InMemoryObjectStorage.shared(base_url=cfg.API_BASE_URL).reset()
     await InMemoryEventBus.shared().reset()
+    await MockLangGraphClient.shared().reset()
     await ConnectionManager.shared().reset()
