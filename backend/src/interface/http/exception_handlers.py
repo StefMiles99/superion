@@ -44,6 +44,7 @@ _CONFLICT_CODES = frozenset({
     ErrorCode.WORK_ORDER_ALREADY_STARTED.value,
     ErrorCode.WORK_ORDER_ALREADY_COMPLETED.value,
     ErrorCode.SESSION_ALREADY_FINALIZED.value,
+    ErrorCode.SESSION_NOT_FINALIZED.value,
     ErrorCode.STEP_CRITICAL_CANNOT_SKIP.value,
     ErrorCode.STEP_REQUIRES_PHOTO.value,
 })
@@ -64,6 +65,7 @@ def _status_for_domain_error(exc: DomainError) -> int:
         ErrorCode.SESSION_NOT_FOUND.value,
         ErrorCode.PHOTO_NOT_FOUND.value,
         ErrorCode.MANUAL_NOT_FOUND.value,
+        ErrorCode.REPORT_NOT_FOUND.value,
     ):
         return 404
     if isinstance(exc, ValidationError) or exc.code in (

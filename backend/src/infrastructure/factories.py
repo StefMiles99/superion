@@ -9,6 +9,7 @@ from domain.ports.repositories import (
     IManualRepository,
     IPhotoRepository,
     IProcedureTemplateRepository,
+    IReportRepository,
     ISessionEventRepository,
     ISessionRepository,
     ITokenBlacklist,
@@ -22,6 +23,7 @@ from domain.ports.services import (
     IPasswordHasher,
     IPdfExtractor,
     IPhotoValidator,
+    IReportRenderer,
     IRerankerService,
     ITokenService,
 )
@@ -41,6 +43,7 @@ from infrastructure.persistence.in_memory.photo_repository import InMemoryPhotoR
 from infrastructure.persistence.in_memory.procedure_template_repository import (
     InMemoryProcedureTemplateRepository,
 )
+from infrastructure.persistence.in_memory.report_repository import InMemoryReportRepository
 from infrastructure.persistence.in_memory.session_event_repository import (
     InMemorySessionEventRepository,
 )
@@ -57,6 +60,7 @@ from infrastructure.persistence.supabase.photo_repository import SupabasePhotoRe
 from infrastructure.persistence.supabase.procedure_template_repository import (
     SupabaseProcedureTemplateRepository,
 )
+from infrastructure.persistence.supabase.report_repository import SupabaseReportRepository
 from infrastructure.persistence.supabase.session_event_repository import (
     SupabaseSessionEventRepository,
 )
@@ -67,11 +71,13 @@ from infrastructure.realtime.event_bus import InMemoryEventBus
 from infrastructure.services.chunker import HierarchicalChunker
 from infrastructure.services.embedding_service import MockEmbeddingService
 from infrastructure.services.pdf_extractor import MockPdfExtractor
+from infrastructure.services.report_renderer import MockReportRenderer
 from infrastructure.services.reranker import MockReranker
 from infrastructure.storage.in_memory import InMemoryObjectStorage
 from infrastructure.storage.supabase import SupabaseObjectStorage
 
 _settings: Settings | None = None
+_build_live_started = False
 
 
 def get_settings() -> Settings:
@@ -210,6 +216,56 @@ def get_photo_validator(settings: Settings | None = None) -> IPhotoValidator:
     raise ValueError(f"PHOTO_VALIDATOR={cfg.PHOTO_VALIDATOR} no soportado")
 
 
+def get_report_repository(settings: Settings | None = None) -> IReportRepository:
+    cfg = settings or get_settings()
+    if cfg.PERSISTENCE == "memory":
+        return InMemoryReportRepository.shared()
+    if cfg.PERSISTENCE == "supabase":
+        return SupabaseReportRepository()
+    raise ValueError(f"PERSISTENCE={cfg.PERSISTENCE} no soportado")
+
+
+def get_report_renderer(settings: Settings | None = None) -> IReportRenderer:
+    cfg = settings or get_settings()
+    if cfg.PDF == "mock":
+        return MockReportRenderer()
+    raise ValueError(f"PDF={cfg.PDF} no soportado")
+
+
+def get_build_live_report_use_case():
+    from application.use_cases.reports.build_live import BuildLiveReportUseCase
+
+    cfg = get_settings()
+    return BuildLiveReportUseCase(
+        reports=get_report_repository(cfg),
+        sessions=get_session_repository(cfg),
+        work_orders=get_work_order_repository(cfg),
+        templates=get_procedure_template_repository(cfg),
+        assets=get_asset_repository(cfg),
+        users=get_user_repository(cfg),
+        events=get_session_event_repository(cfg),
+        photos=get_photo_repository(cfg),
+        bus=get_event_bus(cfg),
+        clock=get_clock(cfg),
+    )
+
+
+async def ensure_build_live_started() -> None:
+    """Arranca suscriptor de reportes en vivo (idempotente)."""
+    global _build_live_started
+    if _build_live_started:
+        return
+    build_live = get_build_live_report_use_case()
+    await build_live.start()
+    _build_live_started = True
+
+
+def reset_build_live_state() -> None:
+    """Resetea flag de arranque — tests."""
+    global _build_live_started
+    _build_live_started = False
+
+
 def get_append_event_use_case():
     from application.use_cases.events.append import AppendEventUseCase
 
@@ -275,13 +331,48 @@ def get_post_session_event_use_case():
 
 
 def get_finalize_session_use_case():
-    from application.use_cases.sessions.finalize import FinalizeSessionUseCase
+    return get_finalize_report_use_case()
+
+
+def get_finalize_report_use_case():
+    from application.use_cases.reports.finalize import FinalizeReportUseCase
 
     cfg = get_settings()
-    return FinalizeSessionUseCase(
+    return FinalizeReportUseCase(
         sessions=get_session_repository(cfg),
+        work_orders=get_work_order_repository(cfg),
+        templates=get_procedure_template_repository(cfg),
+        events=get_session_event_repository(cfg),
+        reports=get_report_repository(cfg),
+        storage=get_object_storage(cfg),
+        renderer=get_report_renderer(cfg),
+        build_live=get_build_live_report_use_case(),
         append_events=get_append_event_use_case(),
         clock=get_clock(cfg),
+        signed_url_ttl=cfg.SIGNED_URL_TTL_SECONDS,
+    )
+
+
+def get_get_report_use_case():
+    from application.use_cases.reports.get import GetReportUseCase
+
+    cfg = get_settings()
+    return GetReportUseCase(
+        sessions=get_session_repository(cfg),
+        reports=get_report_repository(cfg),
+        build_live=get_build_live_report_use_case(),
+    )
+
+
+def get_get_report_pdf_use_case():
+    from application.use_cases.reports.get_pdf import GetReportPdfUseCase
+
+    cfg = get_settings()
+    return GetReportPdfUseCase(
+        sessions=get_session_repository(cfg),
+        reports=get_report_repository(cfg),
+        work_orders=get_work_order_repository(cfg),
+        storage=get_object_storage(cfg),
     )
 
 
@@ -686,6 +777,7 @@ async def reset_auth_state() -> None:
     InMemorySessionRepository.reset_singleton()
     InMemorySessionEventRepository.reset_singleton()
     InMemoryPhotoRepository.reset_singleton()
+    InMemoryReportRepository.reset_singleton()
     InMemoryManualRepository.reset_singleton()
     InMemoryManualChunkRepository.reset_singleton()
     InMemoryObjectStorage.reset_singleton()
@@ -696,9 +788,11 @@ async def reset_auth_state() -> None:
     from interface.ws.manager import ConnectionManager
 
     ConnectionManager.reset_singleton()
+    reset_build_live_state()
     await InMemorySessionRepository.shared().reset()
     await InMemorySessionEventRepository.shared().reset()
     await InMemoryPhotoRepository.shared().reset()
+    await InMemoryReportRepository.shared().reset()
     await InMemoryManualRepository.shared().reset()
     await InMemoryManualChunkRepository.shared().reset()
     cfg = get_settings()
