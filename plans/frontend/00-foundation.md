@@ -1,6 +1,6 @@
 # FE-00 — Foundation
 
-**Estado:** ⏳
+**Estado:** ✅
 **Depende de:** —
 **Desbloquea:** FE-01..13
 **PRD features:** S1 (skeleton), S3 (ui base), S4 (domain skeleton)
@@ -101,12 +101,12 @@ VITE_DEFAULT_THEME=dark
 
 ## Definition of Done
 
-- [ ] `pnpm install` + `pnpm dev` levanta mobile (http://localhost:5173) y desktop (http://localhost:5174)
-- [ ] Ambos apps renderizan placeholder
-- [ ] `pnpm test` pasa unit tests de packages
-- [ ] `pnpm test:e2e` pasa Playwright de ambos apps
-- [ ] Mock clients funcionan sin backend
-- [ ] Switch `VITE_API_MODE=mock|http` wired y testeado
+- [x] `pnpm install` + `pnpm dev` levanta mobile (http://localhost:5173) y desktop (http://localhost:5174)
+- [x] Ambos apps renderizan placeholder
+- [x] `pnpm test` pasa unit tests de packages
+- [x] `pnpm test:e2e` pasa Playwright de ambos apps
+- [x] Mock clients funcionan sin backend
+- [x] Switch `VITE_API_MODE=mock|http` wired y testeado
 
 ## Variables de entorno nuevas
 
