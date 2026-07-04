@@ -1,6 +1,7 @@
 import type { AssistantAnswer } from '../entities/assistant';
 import type { LoginInput, LoginResponse, RefreshInput } from '../entities/auth';
 import type { PhotoUploadResponse } from '../entities/photo';
+import type { FinalizeSessionResponse, MaintenanceReport } from '../entities/report';
 import type {
   Session,
   SessionEventInput,
@@ -38,6 +39,9 @@ export interface IApiClient {
     criteria?: string,
     eventId?: string,
   ): Promise<PhotoUploadResponse>;
+  getReport(sessionId: string): Promise<MaintenanceReport>;
+  getReportPdf(sessionId: string): Promise<Blob>;
+  finalizeSession(sessionId: string): Promise<FinalizeSessionResponse>;
   healthCheck(): Promise<{ status: string }>;
   setTokens?(accessToken: string | null, refreshToken?: string | null): void;
   reset?(): void;

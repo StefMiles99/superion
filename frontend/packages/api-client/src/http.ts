@@ -266,6 +266,20 @@ export class HttpApiClient implements IApiClient {
     throw new NotImplementedError('HttpApiClient.uploadPhoto — implementar en FE-07+');
   }
 
+  async getReport(_sessionId: string): Promise<import('@superion/domain').MaintenanceReport> {
+    throw new NotImplementedError('HttpApiClient.getReport — implementar en FE-08+');
+  }
+
+  async getReportPdf(_sessionId: string): Promise<Blob> {
+    throw new NotImplementedError('HttpApiClient.getReportPdf — implementar en FE-08+');
+  }
+
+  async finalizeSession(
+    _sessionId: string,
+  ): Promise<import('@superion/domain').FinalizeSessionResponse> {
+    throw new NotImplementedError('HttpApiClient.finalizeSession — implementar en FE-08+');
+  }
+
   async healthCheck(): Promise<{ status: string }> {
     return this.request<{ status: string }>('/health');
   }

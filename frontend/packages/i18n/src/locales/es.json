@@ -152,5 +152,35 @@
     "escalated": "Se alcanzó el máximo de reintentos. Contacta al supervisor.",
     "syncing": "Sincronizando…",
     "syncingBadge": "Sync"
+  },
+  "report": {
+    "title": "Reporte de mantenimiento",
+    "back": "Volver a la sesión",
+    "viewReport": "Ver reporte",
+    "summaryHeading": "Resumen ejecutivo",
+    "stepsHeading": "Pasos del procedimiento",
+    "findingsHeading": "Hallazgos",
+    "findingsEmpty": "Sin hallazgos registrados.",
+    "photosHeading": "Evidencia fotográfica",
+    "errorLoading": "No se pudo cargar el reporte.",
+    "finalize": "Finalizar",
+    "finalizeConfirmTitle": "¿Finalizar mantenimiento?",
+    "finalizeConfirmBody": "Se cerrará la sesión y se generará el PDF del reporte.",
+    "finalizeConfirm": "Confirmar",
+    "finalizeCancel": "Cancelar",
+    "downloadPdf": "Descargar PDF",
+    "downloading": "Descargando…",
+    "header": {
+      "ot": "OT",
+      "asset": "Activo",
+      "technician": "Técnico",
+      "duration": "Duración",
+      "durationValue": "{{minutes}} min"
+    },
+    "severity": {
+      "low": "Baja",
+      "med": "Media",
+      "high": "Alta"
+    }
   }
 }

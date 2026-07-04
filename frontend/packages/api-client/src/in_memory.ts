@@ -16,6 +16,7 @@ import type { WorkOrder, WorkOrderDetail, WorkOrderFilter } from '@superion/doma
 import { matchesWorkOrderFilter } from '@superion/domain';
 
 import { ApiError } from './errors';
+import { buildMaintenanceReport, buildMockPdfBytes, createReportId } from './report_helpers';
 import {
   FIXTURE_PROCEDURE_TEMPLATES,
   WORK_ORDER_DETAILS,
@@ -138,6 +139,12 @@ interface StoredSession {
   acceptedPhotoSteps: Set<number>;
   photoRetries: Map<number, number>;
   nextEventSeq: number;
+  reportId: string;
+  reportVersion: number;
+  skippedSteps: Set<number>;
+  findings: import('@superion/domain').ReportFinding[];
+  measurements: import('@superion/domain').ReportMeasurement[];
+  photoGallery: import('@superion/domain').ReportPhoto[];
 }
 
 export type PhotoWsEventEmitter = (event: WsEvent) => void;
@@ -272,6 +279,7 @@ export class InMemoryApiClient implements IApiClient {
   private sessions = new Map<string, StoredSession>();
   private workOrderSessionIds = new Map<string, string>();
   private sessionCounter = 0;
+  private reportCounter = 0;
   private photoCounter = 0;
   private photoEventEmitter: PhotoWsEventEmitter | null = null;
   private readonly maxPhotoRetries = 3;
@@ -286,6 +294,61 @@ export class InMemoryApiClient implements IApiClient {
 
   setListWorkOrdersError(enabled: boolean): void {
     this.listWorkOrdersError = enabled;
+  }
+
+  private getWorkOrderForSession(stored: StoredSession): WorkOrder {
+    const workOrder = this.workOrders.find((item) => item.id === stored.session.workOrderId);
+    if (!workOrder) {
+      throw new ApiError('Orden de trabajo no encontrada', 404, 'WORK_ORDER_NOT_FOUND');
+    }
+    return workOrder;
+  }
+
+  private buildStoredReport(stored: StoredSession): import('@superion/domain').MaintenanceReport {
+    if (!this.currentUser) {
+      throw new AuthError('No autenticado');
+    }
+
+    return buildMaintenanceReport({
+      reportId: stored.reportId,
+      session: stored.session,
+      procedureTemplateId: stored.procedureTemplateId,
+      workOrder: this.getWorkOrderForSession(stored),
+      technician: this.currentUser,
+      version: stored.reportVersion,
+      acceptedPhotoSteps: stored.acceptedPhotoSteps,
+      skippedSteps: stored.skippedSteps,
+      findings: stored.findings,
+      measurements: stored.measurements,
+      photoGallery: stored.photoGallery,
+      now: this.now,
+    });
+  }
+
+  private emitReportUpdated(stored: StoredSession, stepIndex: number): void {
+    const emit = this.photoEventEmitter;
+    if (!emit) {
+      return;
+    }
+
+    const seq = stored.nextEventSeq;
+    stored.nextEventSeq += 1;
+
+    emit({
+      type: 'report.updated',
+      seq,
+      session_id: stored.session.id,
+      created_at: new Date(this.now()).toISOString(),
+      payload: {
+        report_id: stored.reportId,
+        version: stored.reportVersion,
+        diff: {
+          summary_changed: true,
+          step_index: stepIndex,
+          added_event_seq: seq,
+        },
+      },
+    });
   }
 
   setTokens(accessToken: string | null, refreshToken?: string | null): void {
@@ -444,12 +507,26 @@ export class InMemoryApiClient implements IApiClient {
       nextSeq: 1,
     };
 
+    this.reportCounter += 1;
+    const reportId = createReportId(this.reportCounter);
+
     this.sessions.set(sessionId, {
       session: { ...session },
       procedureTemplateId,
       acceptedPhotoSteps: new Set<number>(),
       photoRetries: new Map<number, number>(),
       nextEventSeq: 1,
+      reportId,
+      reportVersion: 1,
+      skippedSteps: new Set<number>(),
+      findings: [
+        {
+          text: 'Condiciones generales dentro de parámetros',
+          severity: 'low',
+        },
+      ],
+      measurements: [],
+      photoGallery: [],
     });
     this.workOrderSessionIds.set(workOrderId, sessionId);
 
@@ -536,7 +613,9 @@ export class InMemoryApiClient implements IApiClient {
           totalActiveSeconds: stored.session.metrics.totalActiveSeconds + 60,
         },
       };
+      stored.reportVersion += 1;
       this.sessions.set(sessionId, stored);
+      this.emitReportUpdated(stored, event.stepIndex);
 
       return { seq, accepted: true };
     }
@@ -676,6 +755,12 @@ export class InMemoryApiClient implements IApiClient {
 
         if (firstChar === 'A') {
           stored.acceptedPhotoSteps.add(stepIndex);
+          stored.photoGallery.push({
+            path: `mock://photo/${photoId}`,
+            caption: criteria ?? 'Evidencia aceptada',
+            thumbnailUrl: `mock://thumb/${photoId}`,
+          });
+          stored.reportVersion += 1;
           stored.session = {
             ...stored.session,
             metrics: {
@@ -684,6 +769,7 @@ export class InMemoryApiClient implements IApiClient {
             },
           };
           this.sessions.set(sessionId, stored);
+          this.emitReportUpdated(stored, stepIndex);
 
           emit({
             type: 'photo.validated',
@@ -729,6 +815,109 @@ export class InMemoryApiClient implements IApiClient {
     };
   }
 
+  async getReport(sessionId: string): Promise<import('@superion/domain').MaintenanceReport> {
+    if (!this.currentUser) {
+      throw new AuthError('No autenticado');
+    }
+
+    const stored = this.sessions.get(sessionId);
+    if (!stored) {
+      throw new ApiError('Sesión no encontrada', 404, 'SESSION_NOT_FOUND');
+    }
+
+    return this.buildStoredReport(stored);
+  }
+
+  async getReportPdf(sessionId: string): Promise<Blob> {
+    if (!this.currentUser) {
+      throw new AuthError('No autenticado');
+    }
+
+    const stored = this.sessions.get(sessionId);
+    if (!stored) {
+      throw new ApiError('Sesión no encontrada', 404, 'SESSION_NOT_FOUND');
+    }
+
+    if (stored.session.status !== 'finalized') {
+      throw new ApiError(
+        'El reporte PDF solo está disponible tras finalizar',
+        409,
+        'SESSION_NOT_FINALIZED',
+      );
+    }
+
+    const workOrder = this.getWorkOrderForSession(stored);
+    const pdfBody = buildMockPdfBytes(workOrder.code);
+    return new Blob([pdfBody], { type: 'application/pdf' });
+  }
+
+  async finalizeSession(
+    sessionId: string,
+  ): Promise<import('@superion/domain').FinalizeSessionResponse> {
+    if (!this.currentUser) {
+      throw new AuthError('No autenticado');
+    }
+
+    const stored = this.sessions.get(sessionId);
+    if (!stored) {
+      throw new ApiError('Sesión no encontrada', 404, 'SESSION_NOT_FOUND');
+    }
+
+    if (stored.session.status === 'finalized') {
+      throw new ApiError('La sesión ya está finalizada', 409, 'SESSION_ALREADY_FINALIZED');
+    }
+
+    const template = FIXTURE_PROCEDURE_TEMPLATES[stored.procedureTemplateId];
+    if (!template) {
+      throw new ApiError('Plantilla no encontrada', 404, 'WORK_ORDER_NOT_FOUND');
+    }
+
+    const endedAt = new Date(this.now()).toISOString();
+    stored.session = {
+      ...stored.session,
+      status: 'finalized',
+      endedAt,
+      currentStepIndex: template.steps.length - 1,
+    };
+    stored.reportVersion += 1;
+    this.sessions.set(sessionId, stored);
+
+    const workOrderIndex = this.workOrders.findIndex(
+      (item) => item.id === stored.session.workOrderId,
+    );
+    if (workOrderIndex !== -1) {
+      const workOrder = this.workOrders[workOrderIndex]!;
+      this.workOrders[workOrderIndex] = {
+        ...workOrder,
+        status: 'completed',
+        asset: { ...workOrder.asset },
+      };
+    }
+
+    const emit = this.photoEventEmitter;
+    if (emit) {
+      const closedSeq = stored.nextEventSeq;
+      stored.nextEventSeq += 1;
+      emit({
+        type: 'session.closed',
+        seq: closedSeq,
+        session_id: sessionId,
+        created_at: endedAt,
+        payload: {},
+      });
+      this.emitReportUpdated(stored, stored.session.currentStepIndex);
+    }
+
+    const pdfExpiresAt = new Date(this.now() + 15 * 60 * 1000).toISOString();
+
+    return {
+      sessionId,
+      reportId: stored.reportId,
+      pdfUrl: `mock://pdf/${sessionId}`,
+      pdfExpiresAt,
+    };
+  }
+
   async healthCheck(): Promise<{ status: string }> {
     return { status: 'ok' };
   }
@@ -747,6 +936,7 @@ export class InMemoryApiClient implements IApiClient {
     this.sessions.clear();
     this.workOrderSessionIds.clear();
     this.sessionCounter = 0;
+    this.reportCounter = 0;
     this.photoCounter = 0;
     this.photoEventEmitter = null;
   }
