@@ -3,16 +3,20 @@ import { useNavigate, useParams } from 'react-router';
 
 import {
   getCurrentStep,
-  getStepDisplayNumber,
   getTotalSteps,
 } from '@superion/domain';
 import { AppShell, Button, Skeleton } from '@superion/ui';
 
+import { CompactStepList } from '../components/CompactStepList';
 import { ErrorBanner } from '../components/ErrorBanner';
 import { StepActions } from '../components/StepActions';
 import { StepCard } from '../components/StepCard';
+import { Stepper } from '../components/Stepper';
+import { Timer } from '../components/Timer';
+import { useEta } from '../hooks/useEta';
 import { useSession, useSessionProcedure } from '../hooks/useSession';
 import { useSessionActions } from '../hooks/useSessionActions';
+import { useSessionTimers } from '../hooks/useSessionTimers';
 import { useWorkOrder } from '../hooks/useWorkOrder';
 
 function SessionPageSkeleton() {
@@ -22,12 +26,6 @@ function SessionPageSkeleton() {
       <Skeleton height="12rem" className="w-full" />
     </div>
   );
-}
-
-function formatTimer(seconds: number): string {
-  const mins = Math.floor(seconds / 60);
-  const secs = seconds % 60;
-  return `${String(mins).padStart(2, '0')}:${String(secs).padStart(2, '0')}`;
 }
 
 export default function SessionPage() {
@@ -43,13 +41,15 @@ export default function SessionPage() {
   const { advanceStep, pauseSession, resumeSession, getAdvanceError, clearAdvanceError } =
     useSessionActions(sessionId);
 
+  const { totalSeconds, stepSeconds } = useSessionTimers(session);
+  const etaSeconds = useEta(session, procedure, totalSeconds);
+
   const isLoading = sessionLoading || procedureLoading;
   const error = sessionError ?? procedureError;
   const advanceError = getAdvanceError();
 
   const currentStep =
     session && procedure ? getCurrentStep(procedure, session.currentStepIndex) : undefined;
-  const stepNumber = session ? getStepDisplayNumber(session.currentStepIndex) : 0;
   const totalSteps = procedure ? getTotalSteps(procedure) : 0;
   const isPaused = session?.status === 'paused';
 
@@ -100,9 +100,11 @@ export default function SessionPage() {
       }
       headerMeta={
         session ? (
-          <span className="text-sm tabular-nums text-[hsl(215_20%_65%)]" aria-label={t('session.timer')}>
-            ⏱ {formatTimer(session.metrics.totalActiveSeconds)}
-          </span>
+          <Timer
+            seconds={totalSeconds}
+            label={t('session.timer')}
+            testId="total-timer"
+          />
         ) : undefined
       }
     >
@@ -133,8 +135,14 @@ export default function SessionPage() {
             </div>
           ) : null}
 
-          <div className="flex-1 p-4">
-            <StepCard step={currentStep} stepNumber={stepNumber} totalSteps={totalSteps} />
+          <div className="flex-1 space-y-4 p-4">
+            <Stepper currentStepIndex={session.currentStepIndex} totalSteps={totalSteps} />
+            <CompactStepList steps={procedure.steps} currentStepIndex={session.currentStepIndex} />
+            <StepCard
+              step={currentStep}
+              stepSeconds={stepSeconds}
+              etaSeconds={etaSeconds}
+            />
           </div>
 
           <StepActions
