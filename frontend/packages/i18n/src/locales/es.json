@@ -4,6 +4,27 @@
     "mobileDescription": "App móvil para técnicos de mantenimiento",
     "desktopDescription": "App de escritorio para supervisores y administración RAG"
   },
+  "auth": {
+    "title": "Iniciar sesión",
+    "email": "Correo electrónico",
+    "password": "Contraseña",
+    "submit": "Entrar",
+    "logout": "Cerrar sesión",
+    "errorInvalidCredentials": "Credenciales inválidas. Inténtalo de nuevo.",
+    "errorGeneric": "No se pudo iniciar sesión. Inténtalo más tarde."
+  },
+  "workOrders": {
+    "title": "Órdenes de trabajo",
+    "placeholder": "Lista de órdenes de trabajo (próximamente)"
+  },
+  "dashboard": {
+    "title": "Panel de supervisión",
+    "placeholder": "Dashboard de sesiones (próximamente)"
+  },
+  "manuals": {
+    "title": "Manuales",
+    "placeholder": "Biblioteca de manuales (próximamente)"
+  },
   "common": {
     "loading": "Cargando…"
   }

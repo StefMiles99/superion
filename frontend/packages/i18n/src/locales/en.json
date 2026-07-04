@@ -4,6 +4,27 @@
     "mobileDescription": "Mobile app for maintenance technicians",
     "desktopDescription": "Desktop app for supervisors and RAG administration"
   },
+  "auth": {
+    "title": "Sign in",
+    "email": "Email",
+    "password": "Password",
+    "submit": "Sign in",
+    "logout": "Sign out",
+    "errorInvalidCredentials": "Invalid credentials.",
+    "errorGeneric": "Could not sign in."
+  },
+  "workOrders": {
+    "title": "Work orders",
+    "placeholder": "Work orders list (coming soon)"
+  },
+  "dashboard": {
+    "title": "Supervisor dashboard",
+    "placeholder": "Sessions dashboard (coming soon)"
+  },
+  "manuals": {
+    "title": "Manuals",
+    "placeholder": "Manuals library (coming soon)"
+  },
   "common": {
     "loading": "Loading…"
   }

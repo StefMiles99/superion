@@ -3,6 +3,7 @@ import { createRoot } from 'react-dom/client';
 import { I18nextProvider } from 'react-i18next';
 
 import { getApiClient } from '@superion/api-client';
+import { syncApiTokensFromSession } from '@superion/auth';
 import { getEnv } from '@superion/config';
 import { initI18n } from '@superion/i18n';
 import { getWsClient } from '@superion/ws-client';
@@ -15,6 +16,8 @@ const i18n = initI18n(env.VITE_DEFAULT_LOCALE);
 
 const api = getApiClient();
 const ws = getWsClient();
+
+syncApiTokensFromSession();
 
 if (import.meta.env.DEV || import.meta.env.MODE === 'test') {
   window.__superion = { api, ws };
