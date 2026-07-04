@@ -1,6 +1,7 @@
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { useNavigate, useParams } from 'react-router';
+import { useQueryClient } from '@tanstack/react-query';
 
 import {
   getCurrentStep,
@@ -20,6 +21,8 @@ import { Timer } from '../components/Timer';
 import { VoiceIndicator } from '../components/VoiceIndicator';
 import { useEta } from '../hooks/useEta';
 import { useAssistantHistory } from '../hooks/useAssistantHistory';
+import { getStepThumbnail, isStepPhotoAccepted } from '../hooks/photo_state';
+import { usePhotoQueue } from '../hooks/usePhotoQueue';
 import { useSession, useSessionProcedure } from '../hooks/useSession';
 import { useSessionActions } from '../hooks/useSessionActions';
 import { useSessionStream } from '../hooks/useSessionStream';
@@ -38,6 +41,7 @@ function SessionPageSkeleton() {
 export default function SessionPage() {
   const { t } = useTranslation();
   const navigate = useNavigate();
+  const queryClient = useQueryClient();
   const { id: sessionId } = useParams<{ id: string }>();
 
   const { data: session, error: sessionError, isLoading: sessionLoading, refetch } =
@@ -53,6 +57,7 @@ export default function SessionPage() {
   const { connectionState, voiceMode, showRetryCta, retryConnection } =
     useSessionStream(sessionId);
   const { data: assistantHistory = [] } = useAssistantHistory(sessionId);
+  const { isSyncing } = usePhotoQueue();
   const [assistantModalOpen, setAssistantModalOpen] = useState(false);
   const [historyPanelOpen, setHistoryPanelOpen] = useState(false);
 
@@ -64,6 +69,21 @@ export default function SessionPage() {
     session && procedure ? getCurrentStep(procedure, session.currentStepIndex) : undefined;
   const totalSteps = procedure ? getTotalSteps(procedure) : 0;
   const isPaused = session?.status === 'paused';
+  const photoAccepted =
+    sessionId && session
+      ? isStepPhotoAccepted(queryClient, sessionId, session.currentStepIndex)
+      : false;
+  const stepThumbnail =
+    sessionId && session
+      ? getStepThumbnail(queryClient, sessionId, session.currentStepIndex)
+      : null;
+
+  useEffect(() => {
+    if (!sessionId || !session || !currentStep?.requiresPhoto || photoAccepted) {
+      return;
+    }
+    navigate(`/sessions/${sessionId}/camera`, { replace: true });
+  }, [currentStep?.requiresPhoto, navigate, photoAccepted, session, sessionId]);
 
   const handleAdvance = () => {
     if (!session) {
@@ -160,6 +180,8 @@ export default function SessionPage() {
               step={currentStep}
               stepSeconds={stepSeconds}
               etaSeconds={etaSeconds}
+              thumbnailUrl={stepThumbnail}
+              isSyncing={isSyncing && currentStep.requiresPhoto && !photoAccepted}
             />
             <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
               <Button

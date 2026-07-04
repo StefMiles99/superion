@@ -8,6 +8,7 @@ const LoginPage = lazy(() => import('./pages/LoginPage'));
 const WorkOrdersPage = lazy(() => import('./pages/WorkOrdersPage'));
 const WorkOrderDetailPage = lazy(() => import('./pages/WorkOrderDetailPage'));
 const SessionPage = lazy(() => import('./pages/SessionPage'));
+const CameraPage = lazy(() => import('./pages/CameraPage'));
 
 function PageFallback() {
   return (
@@ -39,6 +40,14 @@ export const router = createBrowserRouter([
     element: withSuspense(
       <RequireAuth>
         <WorkOrderDetailPage />
+      </RequireAuth>,
+    ),
+  },
+  {
+    path: '/sessions/:id/camera',
+    element: withSuspense(
+      <RequireAuth>
+        <CameraPage />
       </RequireAuth>,
     ),
   },

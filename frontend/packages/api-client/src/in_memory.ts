@@ -4,10 +4,12 @@ import { AuthError } from '@superion/domain';
 import type {
   IApiClient,
   Paginated,
+  PhotoUploadResponse,
   Session,
   SessionEventInput,
   SessionEventResponse,
   SessionStart,
+  WsEvent,
 } from '@superion/domain';
 import type { User } from '@superion/domain';
 import type { WorkOrder, WorkOrderDetail, WorkOrderFilter } from '@superion/domain';
@@ -134,8 +136,11 @@ interface StoredSession {
   session: Session;
   procedureTemplateId: string;
   acceptedPhotoSteps: Set<number>;
+  photoRetries: Map<number, number>;
   nextEventSeq: number;
 }
+
+export type PhotoWsEventEmitter = (event: WsEvent) => void;
 
 function cloneProcedureTemplate(templateId: string) {
   const template = FIXTURE_PROCEDURE_TEMPLATES[templateId];
@@ -148,6 +153,27 @@ function cloneProcedureTemplate(templateId: string) {
     criticalStepIndices: [...template.criticalStepIndices],
     photoRequiredStepIndices: [...template.photoRequiredStepIndices],
   };
+}
+
+function createPhotoId(counter: number): string {
+  return `aa0e8400-e29b-41d4-a716-${String(counter).padStart(12, '0')}`;
+}
+
+async function readBlobBytes(file: Blob): Promise<Uint8Array> {
+  if (typeof file.arrayBuffer === 'function') {
+    try {
+      return new Uint8Array(await file.arrayBuffer());
+    } catch {
+      // jsdom Blob puede no implementar arrayBuffer correctamente
+    }
+  }
+
+  if (typeof file.text === 'function') {
+    const text = await file.text();
+    return new TextEncoder().encode(text);
+  }
+
+  return new Uint8Array();
 }
 
 function createSessionId(counter: number): string {
@@ -246,6 +272,13 @@ export class InMemoryApiClient implements IApiClient {
   private sessions = new Map<string, StoredSession>();
   private workOrderSessionIds = new Map<string, string>();
   private sessionCounter = 0;
+  private photoCounter = 0;
+  private photoEventEmitter: PhotoWsEventEmitter | null = null;
+  private readonly maxPhotoRetries = 3;
+
+  setPhotoEventEmitter(emitter: PhotoWsEventEmitter | null): void {
+    this.photoEventEmitter = emitter;
+  }
 
   setClock(now: () => number): void {
     this.now = now;
@@ -415,6 +448,7 @@ export class InMemoryApiClient implements IApiClient {
       session: { ...session },
       procedureTemplateId,
       acceptedPhotoSteps: new Set<number>(),
+      photoRetries: new Map<number, number>(),
       nextEventSeq: 1,
     });
     this.workOrderSessionIds.set(workOrderId, sessionId);
@@ -596,6 +630,105 @@ export class InMemoryApiClient implements IApiClient {
     return buildMockAssistantAnswer(trimmed);
   }
 
+  async uploadPhoto(
+    sessionId: string,
+    file: Blob,
+    stepIndex: number,
+    criteria?: string,
+    _eventId?: string,
+  ): Promise<PhotoUploadResponse> {
+    if (!this.currentUser) {
+      throw new AuthError('No autenticado');
+    }
+
+    const stored = this.sessions.get(sessionId);
+    if (!stored) {
+      throw new ApiError('Sesión no encontrada', 404, 'SESSION_NOT_FOUND');
+    }
+
+    if (stored.session.status === 'finalized') {
+      throw new ApiError('La sesión ya está finalizada', 409, 'SESSION_ALREADY_FINALIZED');
+    }
+
+    const bytes = await readBlobBytes(file);
+    const firstByte = bytes[0] ?? 0;
+    const firstChar = String.fromCharCode(firstByte);
+    this.photoCounter += 1;
+    const photoId = createPhotoId(this.photoCounter);
+    const uploadedAt = new Date(this.now()).toISOString();
+    const capturedSeq = stored.nextEventSeq;
+    stored.nextEventSeq += 1;
+
+    const emit = this.photoEventEmitter;
+    if (emit) {
+      globalThis.setTimeout(() => {
+        emit({
+          type: 'photo.captured',
+          seq: capturedSeq,
+          session_id: sessionId,
+          created_at: new Date(this.now()).toISOString(),
+          payload: {
+            photo_id: photoId,
+            step_index: stepIndex,
+            thumbnail_url: `mock://thumb/${photoId}`,
+          },
+        });
+
+        if (firstChar === 'A') {
+          stored.acceptedPhotoSteps.add(stepIndex);
+          stored.session = {
+            ...stored.session,
+            metrics: {
+              ...stored.session.metrics,
+              photosCount: stored.session.metrics.photosCount + 1,
+            },
+          };
+          this.sessions.set(sessionId, stored);
+
+          emit({
+            type: 'photo.validated',
+            seq: capturedSeq + 1,
+            session_id: sessionId,
+            created_at: new Date(this.now()).toISOString(),
+            payload: {
+              photo_id: photoId,
+              step_index: stepIndex,
+              feedback: 'ok',
+              caption: criteria ?? 'Evidencia aceptada',
+            },
+          });
+          return;
+        }
+
+        if (firstChar === 'R') {
+          const retries = (stored.photoRetries.get(stepIndex) ?? 0) + 1;
+          stored.photoRetries.set(stepIndex, retries);
+          this.sessions.set(sessionId, stored);
+
+          emit({
+            type: 'photo.rejected',
+            seq: capturedSeq + 1,
+            session_id: sessionId,
+            created_at: new Date(this.now()).toISOString(),
+            payload: {
+              photo_id: photoId,
+              step_index: stepIndex,
+              feedback: 'No se ve el candado. Acércate más.',
+              retries,
+              max_retries: this.maxPhotoRetries,
+            },
+          });
+        }
+      }, 100);
+    }
+
+    return {
+      photoId,
+      status: 'pending',
+      uploadedAt,
+    };
+  }
+
   async healthCheck(): Promise<{ status: string }> {
     return { status: 'ok' };
   }
@@ -614,5 +747,7 @@ export class InMemoryApiClient implements IApiClient {
     this.sessions.clear();
     this.workOrderSessionIds.clear();
     this.sessionCounter = 0;
+    this.photoCounter = 0;
+    this.photoEventEmitter = null;
   }
 }

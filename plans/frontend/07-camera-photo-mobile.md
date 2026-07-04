@@ -1,6 +1,6 @@
 # FE-07 — Mobile · Camera + Photo flow
 
-**Estado:** ⏳
+**Estado:** ✅
 **Depende de:** FE-05
 **Desbloquea:** —
 **PRD features:** M6.1, M6.2, M6.3, M6.4, M6.5, M6.6, M6.7

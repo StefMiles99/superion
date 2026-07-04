@@ -134,5 +134,23 @@
   },
   "common": {
     "loading": "Cargando…"
+  },
+  "photo": {
+    "cameraTitle": "Capturar evidencia",
+    "backToSession": "Volver a la sesión",
+    "captureHint": "Toca el botón para abrir la cámara y tomar la foto requerida.",
+    "openCamera": "Abrir cámara",
+    "previewAlt": "Vista previa de la foto capturada",
+    "thumbnailAlt": "Miniatura de evidencia fotográfica",
+    "pendingThumb": "Pendiente",
+    "retake": "Re-tomar",
+    "send": "Enviar",
+    "validating": "Validando foto…",
+    "accepted": "Foto aceptada",
+    "rejectedGeneric": "La foto no cumple el criterio.",
+    "retryCount": "Intento {{current}} de {{max}}",
+    "escalated": "Se alcanzó el máximo de reintentos. Contacta al supervisor.",
+    "syncing": "Sincronizando…",
+    "syncingBadge": "Sync"
   }
 }
