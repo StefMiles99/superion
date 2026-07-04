@@ -1,0 +1,9 @@
+@import '@superion/ui/styles.css';
+
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+#root {
+  min-height: 100vh;
+}

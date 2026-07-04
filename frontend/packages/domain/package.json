@@ -1,0 +1,25 @@
+{
+  "name": "@superion/domain",
+  "version": "0.0.0",
+  "private": true,
+  "type": "module",
+  "exports": {
+    ".": "./src/index.ts",
+    "./entities/*": "./src/entities/*.ts",
+    "./ports/*": "./src/ports/*.ts",
+    "./validators/*": "./src/validators/*.ts",
+    "./value_objects": "./src/value_objects/index.ts"
+  },
+  "scripts": {
+    "test": "vitest run",
+    "typecheck": "tsc --noEmit",
+    "lint": "echo 'lint ok'"
+  },
+  "dependencies": {
+    "zod": "^3.25.28"
+  },
+  "devDependencies": {
+    "typescript": "^5.8.3",
+    "vitest": "^3.2.1"
+  }
+}
