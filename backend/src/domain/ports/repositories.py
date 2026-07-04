@@ -7,6 +7,7 @@ from typing import Protocol
 from domain.entities.asset import Asset
 from domain.entities.maintenance_session import MaintenanceSession
 from domain.entities.procedure_template import ProcedureTemplate
+from domain.entities.session_event import SessionEvent
 from domain.entities.user import User
 from domain.entities.work_order import WorkOrder
 
@@ -83,3 +84,23 @@ class ISessionRepository(Protocol):
         self,
         work_order_id: str,
     ) -> MaintenanceSession | None: ...
+
+
+class ISessionEventRepository(Protocol):
+    """Persistencia append-only de eventos de sesión."""
+
+    async def append(self, event: SessionEvent) -> SessionEvent: ...
+
+    async def get_by_event_id(self, session_id: str, event_id: str) -> SessionEvent | None: ...
+
+    async def list_since(
+        self,
+        session_id: str,
+        *,
+        since_seq: int = 0,
+        limit: int = 100,
+    ) -> list[SessionEvent]: ...
+
+    async def next_seq(self, session_id: str) -> int: ...
+
+    async def has_accepted_photo(self, session_id: str, step_index: int) -> bool: ...

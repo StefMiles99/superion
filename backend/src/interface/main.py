@@ -11,6 +11,7 @@ from interface.http.exception_handlers import register_exception_handlers
 from interface.http.middleware.correlation import CorrelationMiddleware
 from interface.http.middleware.logging import LoggingMiddleware
 from interface.http.routers import auth, health, sessions, work_orders
+from interface.ws.handlers import router as ws_router
 
 
 def create_app(settings: Settings | None = None) -> FastAPI:
@@ -32,6 +33,7 @@ def create_app(settings: Settings | None = None) -> FastAPI:
     app.include_router(auth.router)
     app.include_router(work_orders.router)
     app.include_router(sessions.router)
+    app.include_router(ws_router)
 
     return app
 

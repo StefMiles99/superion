@@ -1,18 +1,24 @@
-"""Use case GetSession — BE-02."""
+"""Use case GetSession — BE-02/BE-03."""
 
 from __future__ import annotations
 
 from application.dto.session import SessionDetailOutput, SessionMetricsOutput
 from domain.entities.user import User
 from domain.exceptions import NotFoundError
-from domain.ports.repositories import ISessionRepository
+from domain.ports.repositories import ISessionEventRepository, ISessionRepository
 
 
 class GetSessionUseCase:
     """Devuelve detalle de sesión con métricas básicas."""
 
-    def __init__(self, *, sessions: ISessionRepository) -> None:
+    def __init__(
+        self,
+        *,
+        sessions: ISessionRepository,
+        events: ISessionEventRepository,
+    ) -> None:
         self._sessions = sessions
+        self._events = events
 
     async def execute(self, *, session_id: str, current_user: User) -> SessionDetailOutput:
         session = await self._sessions.get_by_id_for_technician(
@@ -30,6 +36,8 @@ class GetSessionUseCase:
         if session.ended_at is not None:
             ended_at = session.ended_at.isoformat().replace("+00:00", "Z")
 
+        next_seq = await self._events.next_seq(session_id)
+
         return SessionDetailOutput(
             id=session.id,
             work_order_id=session.work_order_id,
@@ -39,5 +47,5 @@ class GetSessionUseCase:
             ended_at=ended_at,
             current_step_index=session.current_step_index,
             metrics=SessionMetricsOutput(),
-            next_seq=1,
+            next_seq=next_seq,
         )

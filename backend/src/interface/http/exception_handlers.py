@@ -42,6 +42,9 @@ def _error_envelope(
 _CONFLICT_CODES = frozenset({
     ErrorCode.WORK_ORDER_ALREADY_STARTED.value,
     ErrorCode.WORK_ORDER_ALREADY_COMPLETED.value,
+    ErrorCode.SESSION_ALREADY_FINALIZED.value,
+    ErrorCode.STEP_CRITICAL_CANNOT_SKIP.value,
+    ErrorCode.STEP_REQUIRES_PHOTO.value,
 })
 
 

@@ -33,3 +33,7 @@ class Settings(BaseSettings):
     ACCESS_TOKEN_TTL_SECONDS: int = 3600
     REFRESH_TOKEN_TTL_SECONDS: int = 2592000
     PASSWORD_BCRYPT_ROUNDS: int = 10
+    WS_HEARTBEAT_INTERVAL: int = 30
+    WS_PONG_TIMEOUT: int = 60
+    WS_REPLAY_ON_CONNECT: bool = True
+    EVENTBUS: Literal["memory", "redis"] = "memory"
