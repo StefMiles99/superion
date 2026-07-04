@@ -6,7 +6,7 @@ import type {
 import { AuthError } from '@superion/domain';
 import type { IApiClient, Paginated } from '@superion/domain';
 import type { Role, User } from '@superion/domain';
-import type { WorkOrder } from '@superion/domain';
+import type { WorkOrder, WorkOrderFilter } from '@superion/domain';
 
 import { ApiError } from './errors';
 
@@ -41,8 +41,36 @@ interface WorkOrdersApiResponse {
     priority: WorkOrder['priority'];
     procedure_name: string;
     estimated_minutes: number;
+    asset: {
+      id: string;
+      tag: string;
+      name: string;
+    };
   }>;
   next_cursor: string | null;
+}
+
+function buildWorkOrdersQuery(filter: WorkOrderFilter = {}): string {
+  const params = new URLSearchParams();
+
+  if (filter.status) {
+    params.set('status', filter.status);
+  }
+  if (filter.priority) {
+    params.set('priority', filter.priority);
+  }
+  if (filter.q) {
+    params.set('q', filter.q);
+  }
+  if (filter.cursor) {
+    params.set('cursor', filter.cursor);
+  }
+  if (filter.limit !== undefined) {
+    params.set('limit', String(filter.limit));
+  }
+
+  const query = params.toString();
+  return query ? `?${query}` : '';
 }
 
 function mapUser(apiUser: AuthApiUser | MeApiResponse): User {
@@ -174,8 +202,10 @@ export class HttpApiClient implements IApiClient {
     return mapUser(data);
   }
 
-  async listWorkOrders(): Promise<Paginated<WorkOrder>> {
-    const data = await this.request<WorkOrdersApiResponse>('/v1/work-orders');
+  async listWorkOrders(filter: WorkOrderFilter = {}): Promise<Paginated<WorkOrder>> {
+    const data = await this.request<WorkOrdersApiResponse>(
+      `/v1/work-orders${buildWorkOrdersQuery(filter)}`,
+    );
 
     return {
       items: data.items.map((item) => ({
@@ -185,6 +215,11 @@ export class HttpApiClient implements IApiClient {
         priority: item.priority,
         procedureName: item.procedure_name,
         estimatedMinutes: item.estimated_minutes,
+        asset: {
+          id: item.asset.id,
+          tag: item.asset.tag,
+          name: item.asset.name,
+        },
       })),
       nextCursor: data.next_cursor,
     };

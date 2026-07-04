@@ -1,6 +1,6 @@
 # FE-02 — Mobile · Work Orders list
 
-**Estado:** ⏳
+**Estado:** ✅
 **Depende de:** FE-01
 **Desbloquea:** FE-03
 **PRD features:** M2.1, M2.2, M2.3, M2.4, M2.5, M2.6

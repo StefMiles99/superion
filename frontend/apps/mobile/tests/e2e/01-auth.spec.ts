@@ -12,7 +12,7 @@ test.describe('mobile auth', () => {
 
     const session = await page.evaluate(() => localStorage.getItem('superion.auth'));
     expect(session).toContain('accessToken');
-    await expect(page.getByTestId('work-orders-placeholder')).toBeVisible();
+    await expect(page.getByTestId('work-orders-list')).toBeVisible();
   });
 
   test('redirects unauthenticated users to login', async ({ page }) => {

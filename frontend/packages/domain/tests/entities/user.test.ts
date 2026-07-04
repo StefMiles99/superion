@@ -48,6 +48,11 @@ describe('WorkOrderSchema', () => {
       priority: 'high',
       procedureName: 'MP-Compresor-C3-v3',
       estimatedMinutes: 90,
+      asset: {
+        id: '880e8400-e29b-41d4-a716-446655440000',
+        tag: 'COMP-C3',
+        name: 'Compresor C-3',
+      },
     });
     expect(result.success).toBe(true);
   });
@@ -60,6 +65,11 @@ describe('WorkOrderSchema', () => {
       priority: 'high',
       procedureName: 'MP-Compresor-C3-v3',
       estimatedMinutes: 90,
+      asset: {
+        id: '880e8400-e29b-41d4-a716-446655440000',
+        tag: 'COMP-C3',
+        name: 'Compresor C-3',
+      },
     });
     expect(result.success).toBe(false);
   });
