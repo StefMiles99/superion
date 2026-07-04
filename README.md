@@ -1,4 +1,4 @@
-SUPERION es un copiloto de voz para técnicos de mantenimiento industrial que responde consultas técnicas citando el manual exacto, guía procedimientos paso a paso sin permitir omitir pasos críticos, y registra todo lo que el técnico narra mientras trabaja con las manos ocupadas — para generar automáticamente, al cierre de la intervención, el reporte de mantenimiento y las órdenes de trabajo a partir de la conversación y la evidencia fotográfica. Construido con ElevenLabs Agents, LangGraph, OpenRouter y Supabase, convierte hasta un 50% de jornada perdida en papeleo en tiempo de trabajo real.
+SUPERION es un copiloto de voz para técnicos de mantenimiento industrial que responde consultas técnicas citando el manual exacto, guía procedimientos paso a paso sin permitir omitir pasos críticos, y registra todo lo que el técnico narra mientras trabaja — para generar automáticamente, al cierre de la intervención, el reporte de mantenimiento y las órdenes de trabajo a partir de la conversación y la evidencia fotográfica. Construido con ElevenLabs Agents, LangGraph, OpenRouter y Supabase, convierte hasta un 50% de jornada perdida en papeleo en tiempo de trabajo real.
 
 No significa nada — y eso es parte de su fuerza. No es una palabra real en ningún diccionario; es un nombre acuñado. Pero está construido con piezas que sí cargan significado, y por eso "suena" a algo aunque no lo sea:
 
@@ -14,6 +14,6 @@ Demo Objetivo:
 - Se muestra el paso actual del procedimiento y el progreso de todo el procedimiento, un cronómetro y tiempo estimado para terminar.
 - Durante cada paso, el técnico puede preguntar al asistente sobre cualquier duda relacionada, se responde con base en el manual
 - La IA pide tomar fotos en un momento concreto para realizar análisis, si la foto no esta bien pide volver a tomarla. 
-- Con la captura de todos estos datos (cercano a tiempo real) se empieza a armar el reporte de mantenimiento en una interfaz visual
+- Con la captura de todos estos datos (cercano a tiempo real) se empieza a armar el reporte de mantenimiento en una interfaz visual por separado (Realtime entre dos dispositivos, es decir una parte web en un teléfono móvil y otra en un dashboard donde se va visualizando el reporte)
 - Finalmente se genera el documento (.pdf) con el reporte de mantenimiento finalizado y las fotografías registradas.
 
