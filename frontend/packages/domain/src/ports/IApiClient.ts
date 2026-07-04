@@ -1,6 +1,12 @@
 import type { LoginInput, LoginResponse, RefreshInput } from '../entities/auth';
+import type {
+  Session,
+  SessionEventInput,
+  SessionEventResponse,
+  SessionStart,
+} from '../entities/session';
 import type { User } from '../entities/user';
-import type { WorkOrder, WorkOrderFilter } from '../entities/work_order';
+import type { WorkOrder, WorkOrderDetail, WorkOrderFilter } from '../entities/work_order';
 
 export interface Paginated<T> {
   items: T[];
@@ -13,6 +19,15 @@ export interface IApiClient {
   logout(): Promise<void>;
   me(): Promise<User>;
   listWorkOrders(filter?: WorkOrderFilter): Promise<Paginated<WorkOrder>>;
+  getWorkOrder(id: string): Promise<WorkOrderDetail>;
+  startSession(workOrderId: string): Promise<SessionStart>;
+  getSession(id: string): Promise<Session>;
+  postSessionEvent(
+    sessionId: string,
+    event: SessionEventInput,
+  ): Promise<SessionEventResponse>;
+  pauseSession(sessionId: string): Promise<void>;
+  resumeSession(sessionId: string): Promise<void>;
   healthCheck(): Promise<{ status: string }>;
   setTokens?(accessToken: string | null, refreshToken?: string | null): void;
   reset?(): void;

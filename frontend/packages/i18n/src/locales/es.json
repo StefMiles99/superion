@@ -48,6 +48,36 @@
     },
     "card": {
       "estimatedMinutes": "{{minutes}} min estimados"
+    },
+    "detail": {
+      "title": "Detalle de OT",
+      "back": "Volver a órdenes",
+      "description": "Descripción",
+      "notes": "Notas",
+      "errorLoading": "No se pudo cargar el detalle de la OT.",
+      "startError": "No se pudo iniciar el mantenimiento.",
+      "alreadyStarted": "Esta OT ya tiene una sesión en curso.",
+      "backToList": "Volver al listado"
+    }
+  },
+  "session": {
+    "title": "Sesión de mantenimiento",
+    "start": "Iniciar mantenimiento",
+    "back": "Volver al detalle de OT",
+    "timer": "Tiempo activo",
+    "stepProgress": "Paso {{current}} de {{total}}",
+    "errorLoading": "No se pudo cargar la sesión.",
+    "errors": {
+      "requiresPhoto": "Este paso requiere foto antes de continuar."
+    },
+    "badges": {
+      "critical": "Crítico",
+      "requiresPhoto": "Requiere foto"
+    },
+    "actions": {
+      "nextStep": "Siguiente paso",
+      "pause": "Pausar",
+      "resume": "Reanudar"
     }
   },
   "dashboard": {

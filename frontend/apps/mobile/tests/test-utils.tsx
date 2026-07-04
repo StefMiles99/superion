@@ -30,7 +30,12 @@ export function renderWithProviders(
   {
     initialEntries = ['/login'],
     session = null,
-  }: { initialEntries?: string[]; session?: AuthSession | null } = {},
+    queryClient = createTestQueryClient(),
+  }: {
+    initialEntries?: string[];
+    session?: AuthSession | null;
+    queryClient?: QueryClient;
+  } = {},
 ): RenderResult & { router: Router } {
   localStorage.clear();
   resetApiClient();
@@ -42,7 +47,6 @@ export function renderWithProviders(
     isAuthenticated,
   });
 
-  const queryClient = createTestQueryClient();
   const router = createMemoryRouter(routes, { initialEntries });
   const i18n = initI18n('es-ES');
 

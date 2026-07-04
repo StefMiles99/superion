@@ -1,9 +1,23 @@
 import type { LoginInput, LoginResponse, RefreshInput } from '@superion/domain';
 import { AuthError } from '@superion/domain';
-import type { IApiClient, Paginated } from '@superion/domain';
+import type {
+  IApiClient,
+  Paginated,
+  Session,
+  SessionEventInput,
+  SessionEventResponse,
+  SessionStart,
+} from '@superion/domain';
 import type { User } from '@superion/domain';
-import type { WorkOrder, WorkOrderFilter } from '@superion/domain';
+import type { WorkOrder, WorkOrderDetail, WorkOrderFilter } from '@superion/domain';
 import { matchesWorkOrderFilter } from '@superion/domain';
+
+import { ApiError } from './errors';
+import {
+  FIXTURE_PROCEDURE_TEMPLATES,
+  WORK_ORDER_DETAILS,
+  WORK_ORDER_TEMPLATE_IDS,
+} from './session_fixtures';
 
 const MOCK_PASSWORD = 'test1234';
 const TOKEN_EXPIRES_IN = 3600;
@@ -115,6 +129,34 @@ const FIXTURE_WORK_ORDERS: WorkOrder[] = [
   },
 ];
 
+interface StoredSession {
+  session: Session;
+  procedureTemplateId: string;
+  acceptedPhotoSteps: Set<number>;
+  nextEventSeq: number;
+}
+
+function cloneProcedureTemplate(templateId: string) {
+  const template = FIXTURE_PROCEDURE_TEMPLATES[templateId];
+  if (!template) {
+    return null;
+  }
+  return {
+    ...template,
+    steps: template.steps.map((step) => ({ ...step })),
+    criticalStepIndices: [...template.criticalStepIndices],
+    photoRequiredStepIndices: [...template.photoRequiredStepIndices],
+  };
+}
+
+function createSessionId(counter: number): string {
+  return `880e8400-e29b-41d4-a716-44665544${String(counter).padStart(4, '0')}`;
+}
+
+function createThreadId(counter: number): string {
+  return `990e8400-e29b-41d4-a716-44665544${String(counter).padStart(4, '0')}`;
+}
+
 function base64Encode(value: string): string {
   const bytes = new TextEncoder().encode(value);
   let binary = '';
@@ -172,6 +214,9 @@ export class InMemoryApiClient implements IApiClient {
   private refreshToken: string | null = null;
   private now: () => number = () => Date.now();
   private listWorkOrdersError = false;
+  private sessions = new Map<string, StoredSession>();
+  private workOrderSessionIds = new Map<string, string>();
+  private sessionCounter = 0;
 
   setClock(now: () => number): void {
     this.now = now;
@@ -259,6 +304,243 @@ export class InMemoryApiClient implements IApiClient {
     return paginateWorkOrders(filtered, filter);
   }
 
+  async getWorkOrder(id: string): Promise<WorkOrderDetail> {
+    if (!this.currentUser) {
+      throw new AuthError('No autenticado');
+    }
+
+    const workOrder = this.workOrders.find((item) => item.id === id);
+    if (!workOrder) {
+      throw new ApiError('Orden de trabajo no encontrada', 404, 'WORK_ORDER_NOT_FOUND');
+    }
+
+    const details = WORK_ORDER_DETAILS[id] ?? {
+      description: '',
+      notes: '',
+      linkedWoIds: [],
+    };
+    const procedureTemplateId = WORK_ORDER_TEMPLATE_IDS[id] ?? 'tmpl-compresor';
+
+    return {
+      ...workOrder,
+      asset: { ...workOrder.asset },
+      description: details.description,
+      notes: details.notes,
+      linkedWoIds: [...details.linkedWoIds],
+      procedureTemplateId,
+    };
+  }
+
+  async startSession(workOrderId: string): Promise<SessionStart> {
+    if (!this.currentUser) {
+      throw new AuthError('No autenticado');
+    }
+
+    const workOrderIndex = this.workOrders.findIndex((item) => item.id === workOrderId);
+    if (workOrderIndex === -1) {
+      throw new ApiError('Orden de trabajo no encontrada', 404, 'WORK_ORDER_NOT_FOUND');
+    }
+
+    const workOrder = this.workOrders[workOrderIndex]!;
+    if (workOrder.status === 'in_progress' || workOrder.status === 'paused') {
+      throw new ApiError(
+        'La OT ya tiene una sesión activa',
+        409,
+        'WORK_ORDER_ALREADY_STARTED',
+      );
+    }
+    if (workOrder.status === 'completed') {
+      throw new ApiError('La OT ya está completada', 409, 'WORK_ORDER_ALREADY_COMPLETED');
+    }
+
+    const procedureTemplateId = WORK_ORDER_TEMPLATE_IDS[workOrderId] ?? 'tmpl-compresor';
+    const procedureTemplate = cloneProcedureTemplate(procedureTemplateId);
+    if (!procedureTemplate) {
+      throw new ApiError('Plantilla no encontrada', 404, 'WORK_ORDER_NOT_FOUND');
+    }
+
+    this.sessionCounter += 1;
+    const sessionId = createSessionId(this.sessionCounter);
+    const langgraphThreadId = createThreadId(this.sessionCounter);
+    const startedAt = new Date(this.now()).toISOString();
+
+    const session: Session = {
+      id: sessionId,
+      workOrderId,
+      technicianId: this.currentUser.id,
+      status: 'active',
+      startedAt,
+      endedAt: null,
+      currentStepIndex: 0,
+      langgraphThreadId,
+      metrics: {
+        totalActiveSeconds: 0,
+        voiceSeconds: 0,
+        photosCount: 0,
+        avgStepSeconds: 0,
+      },
+      nextSeq: 1,
+    };
+
+    this.sessions.set(sessionId, {
+      session: { ...session },
+      procedureTemplateId,
+      acceptedPhotoSteps: new Set<number>(),
+      nextEventSeq: 1,
+    });
+    this.workOrderSessionIds.set(workOrderId, sessionId);
+
+    this.workOrders[workOrderIndex] = {
+      ...workOrder,
+      status: 'in_progress',
+      asset: { ...workOrder.asset },
+    };
+
+    return {
+      sessionId,
+      workOrderId,
+      procedureTemplate,
+      langgraphThreadId,
+      websocketUrl: `wss://mock.superion.app/v1/ws/sessions/${sessionId}`,
+      startedAt,
+    };
+  }
+
+  async getSession(id: string): Promise<Session> {
+    if (!this.currentUser) {
+      throw new AuthError('No autenticado');
+    }
+
+    const stored = this.sessions.get(id);
+    if (!stored) {
+      throw new ApiError('Sesión no encontrada', 404, 'SESSION_NOT_FOUND');
+    }
+
+    return {
+      ...stored.session,
+      metrics: { ...stored.session.metrics },
+    };
+  }
+
+  async postSessionEvent(
+    sessionId: string,
+    event: SessionEventInput,
+  ): Promise<SessionEventResponse> {
+    if (!this.currentUser) {
+      throw new AuthError('No autenticado');
+    }
+
+    const stored = this.sessions.get(sessionId);
+    if (!stored) {
+      throw new ApiError('Sesión no encontrada', 404, 'SESSION_NOT_FOUND');
+    }
+
+    if (stored.session.status === 'finalized') {
+      throw new ApiError('La sesión ya está finalizada', 409, 'SESSION_ALREADY_FINALIZED');
+    }
+
+    if (event.type === 'step_advance') {
+      if (event.stepIndex !== stored.session.currentStepIndex) {
+        throw new ApiError('Paso fuera de orden', 409, 'STEP_OUT_OF_ORDER');
+      }
+
+      const template = FIXTURE_PROCEDURE_TEMPLATES[stored.procedureTemplateId];
+      if (!template) {
+        throw new ApiError('Plantilla no encontrada', 404, 'WORK_ORDER_NOT_FOUND');
+      }
+
+      if (
+        template.photoRequiredStepIndices.includes(event.stepIndex) &&
+        !stored.acceptedPhotoSteps.has(event.stepIndex)
+      ) {
+        throw new ApiError(
+          'El paso requiere foto aceptada antes de completar',
+          409,
+          'STEP_REQUIRES_PHOTO',
+        );
+      }
+
+      const nextIndex = event.stepIndex + 1;
+      const seq = stored.nextEventSeq;
+      stored.nextEventSeq += 1;
+
+      stored.session = {
+        ...stored.session,
+        currentStepIndex: nextIndex < template.steps.length ? nextIndex : event.stepIndex,
+        nextSeq: stored.nextEventSeq,
+        metrics: {
+          ...stored.session.metrics,
+          totalActiveSeconds: stored.session.metrics.totalActiveSeconds + 60,
+        },
+      };
+      this.sessions.set(sessionId, stored);
+
+      return { seq, accepted: true };
+    }
+
+    throw new ApiError(`Tipo de evento no soportado: ${event.type}`, 400, 'VALIDATION_ERROR');
+  }
+
+  async pauseSession(sessionId: string): Promise<void> {
+    if (!this.currentUser) {
+      throw new AuthError('No autenticado');
+    }
+
+    const stored = this.sessions.get(sessionId);
+    if (!stored) {
+      throw new ApiError('Sesión no encontrada', 404, 'SESSION_NOT_FOUND');
+    }
+
+    if (stored.session.status !== 'active') {
+      throw new ApiError('Solo se puede pausar una sesión activa', 409, 'VALIDATION_ERROR');
+    }
+
+    stored.session = { ...stored.session, status: 'paused' };
+    this.sessions.set(sessionId, stored);
+
+    const workOrderIndex = this.workOrders.findIndex(
+      (item) => item.id === stored.session.workOrderId,
+    );
+    if (workOrderIndex !== -1) {
+      const workOrder = this.workOrders[workOrderIndex]!;
+      this.workOrders[workOrderIndex] = {
+        ...workOrder,
+        status: 'paused',
+        asset: { ...workOrder.asset },
+      };
+    }
+  }
+
+  async resumeSession(sessionId: string): Promise<void> {
+    if (!this.currentUser) {
+      throw new AuthError('No autenticado');
+    }
+
+    const stored = this.sessions.get(sessionId);
+    if (!stored) {
+      throw new ApiError('Sesión no encontrada', 404, 'SESSION_NOT_FOUND');
+    }
+
+    if (stored.session.status !== 'paused') {
+      throw new ApiError('Solo se puede reanudar una sesión pausada', 409, 'VALIDATION_ERROR');
+    }
+
+    stored.session = { ...stored.session, status: 'active' };
+    this.sessions.set(sessionId, stored);
+
+    const workOrderIndex = this.workOrders.findIndex(
+      (item) => item.id === stored.session.workOrderId,
+    );
+    if (workOrderIndex !== -1) {
+      const workOrder = this.workOrders[workOrderIndex]!;
+      this.workOrders[workOrderIndex] = {
+        ...workOrder,
+        status: 'in_progress',
+        asset: { ...workOrder.asset },
+      };
+    }
+  }
+
   async healthCheck(): Promise<{ status: string }> {
     return { status: 'ok' };
   }
@@ -274,5 +556,8 @@ export class InMemoryApiClient implements IApiClient {
     this.refreshToken = null;
     this.now = () => Date.now();
     this.listWorkOrdersError = false;
+    this.sessions.clear();
+    this.workOrderSessionIds.clear();
+    this.sessionCounter = 0;
   }
 }
