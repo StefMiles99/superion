@@ -2,9 +2,11 @@
 
 from __future__ import annotations
 
+from domain.ports.event_bus import IEventBus
 from domain.ports.repositories import (
     IAssetRepository,
     IProcedureTemplateRepository,
+    ISessionEventRepository,
     ISessionRepository,
     ITokenBlacklist,
     IUserRepository,
@@ -20,6 +22,9 @@ from infrastructure.persistence.in_memory.clock import InMemoryClock
 from infrastructure.persistence.in_memory.procedure_template_repository import (
     InMemoryProcedureTemplateRepository,
 )
+from infrastructure.persistence.in_memory.session_event_repository import (
+    InMemorySessionEventRepository,
+)
 from infrastructure.persistence.in_memory.session_repository import InMemorySessionRepository
 from infrastructure.persistence.in_memory.token_blacklist import InMemoryTokenBlacklist
 from infrastructure.persistence.in_memory.user_repository import InMemoryUserRepository
@@ -28,9 +33,13 @@ from infrastructure.persistence.supabase.asset_repository import SupabaseAssetRe
 from infrastructure.persistence.supabase.procedure_template_repository import (
     SupabaseProcedureTemplateRepository,
 )
+from infrastructure.persistence.supabase.session_event_repository import (
+    SupabaseSessionEventRepository,
+)
 from infrastructure.persistence.supabase.session_repository import SupabaseSessionRepository
 from infrastructure.persistence.supabase.user_repository import SupabaseUserRepository
 from infrastructure.persistence.supabase.work_order_repository import SupabaseWorkOrderRepository
+from infrastructure.realtime.event_bus import InMemoryEventBus
 
 _settings: Settings | None = None
 
@@ -130,6 +139,107 @@ def get_session_repository(settings: Settings | None = None) -> ISessionReposito
     raise ValueError(f"PERSISTENCE={cfg.PERSISTENCE} no soportado")
 
 
+def get_session_event_repository(settings: Settings | None = None) -> ISessionEventRepository:
+    cfg = settings or get_settings()
+    if cfg.PERSISTENCE == "memory":
+        return InMemorySessionEventRepository.shared()
+    if cfg.PERSISTENCE == "supabase":
+        return SupabaseSessionEventRepository()
+    raise ValueError(f"PERSISTENCE={cfg.PERSISTENCE} no soportado")
+
+
+def get_event_bus(settings: Settings | None = None) -> IEventBus:
+    cfg = settings or get_settings()
+    if cfg.EVENTBUS == "memory":
+        return InMemoryEventBus.shared()
+    raise ValueError(f"EVENTBUS={cfg.EVENTBUS} no soportado")
+
+
+def get_append_event_use_case():
+    from application.use_cases.events.append import AppendEventUseCase
+
+    cfg = get_settings()
+    return AppendEventUseCase(
+        sessions=get_session_repository(cfg),
+        events=get_session_event_repository(cfg),
+        bus=get_event_bus(cfg),
+        clock=get_clock(cfg),
+    )
+
+
+def get_list_events_use_case():
+    from application.use_cases.events.list_since import ListEventsSinceUseCase
+
+    cfg = get_settings()
+    return ListEventsSinceUseCase(
+        sessions=get_session_repository(cfg),
+        events=get_session_event_repository(cfg),
+    )
+
+
+def get_pause_session_use_case():
+    from application.use_cases.sessions.pause import PauseSessionUseCase
+
+    return PauseSessionUseCase(
+        sessions=get_session_repository(),
+        append_events=get_append_event_use_case(),
+    )
+
+
+def get_resume_session_use_case():
+    from application.use_cases.sessions.resume import ResumeSessionUseCase
+
+    return ResumeSessionUseCase(
+        sessions=get_session_repository(),
+        append_events=get_append_event_use_case(),
+    )
+
+
+def get_transition_step_use_case():
+    from application.use_cases.sessions.transition_step import TransitionStepUseCase
+
+    cfg = get_settings()
+    return TransitionStepUseCase(
+        sessions=get_session_repository(cfg),
+        work_orders=get_work_order_repository(cfg),
+        templates=get_procedure_template_repository(cfg),
+        events=get_session_event_repository(cfg),
+        append_events=get_append_event_use_case(),
+    )
+
+
+def get_post_session_event_use_case():
+    from application.use_cases.events.post import PostSessionEventUseCase
+
+    return PostSessionEventUseCase(
+        append_events=get_append_event_use_case(),
+        pause_session=get_pause_session_use_case(),
+        resume_session=get_resume_session_use_case(),
+        transition_step=get_transition_step_use_case(),
+    )
+
+
+def get_finalize_session_use_case():
+    from application.use_cases.sessions.finalize import FinalizeSessionUseCase
+
+    cfg = get_settings()
+    return FinalizeSessionUseCase(
+        sessions=get_session_repository(cfg),
+        append_events=get_append_event_use_case(),
+        clock=get_clock(cfg),
+    )
+
+
+def get_session_use_case():
+    from application.use_cases.sessions.get import GetSessionUseCase
+
+    cfg = get_settings()
+    return GetSessionUseCase(
+        sessions=get_session_repository(cfg),
+        events=get_session_event_repository(cfg),
+    )
+
+
 def get_login_use_case():
     from application.use_cases.auth.login import LoginUseCase
 
@@ -206,13 +316,6 @@ def get_start_session_use_case():
     )
 
 
-def get_session_use_case():
-    from application.use_cases.sessions.get import GetSessionUseCase
-
-    cfg = get_settings()
-    return GetSessionUseCase(sessions=get_session_repository(cfg))
-
-
 async def reset_auth_state() -> None:
     """Resetea repos y blacklist in-memory entre tests."""
     InMemoryUserRepository.reset_singleton()
@@ -222,4 +325,12 @@ async def reset_auth_state() -> None:
     InMemoryProcedureTemplateRepository.reset_singleton()
     InMemoryAssetRepository.reset_singleton()
     InMemorySessionRepository.reset_singleton()
+    InMemorySessionEventRepository.reset_singleton()
+    InMemoryEventBus.reset_singleton()
+    from interface.ws.manager import ConnectionManager
+
+    ConnectionManager.reset_singleton()
     await InMemorySessionRepository.shared().reset()
+    await InMemorySessionEventRepository.shared().reset()
+    await InMemoryEventBus.shared().reset()
+    await ConnectionManager.shared().reset()
