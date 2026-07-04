@@ -1,6 +1,7 @@
 export * from './entities/assistant';
 export * from './entities/auth';
 export * from './entities/photo';
+export * from './entities/report';
 export * from './entities/user';
 export * from './entities/work_order';
 export * from './entities/maintenance_session';

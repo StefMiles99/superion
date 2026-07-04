@@ -189,6 +189,16 @@ export default function SessionPage() {
                 variant="secondary"
                 className="min-h-14 w-full text-base"
                 onClick={() => {
+                  navigate(`/sessions/${session.id}/report`);
+                }}
+              >
+                {t('report.viewReport')}
+              </Button>
+              <Button
+                type="button"
+                variant="secondary"
+                className="min-h-14 w-full text-base"
+                onClick={() => {
                   setAssistantModalOpen(true);
                 }}
               >
@@ -197,7 +207,7 @@ export default function SessionPage() {
               <Button
                 type="button"
                 variant="ghost"
-                className="min-h-14 w-full text-base"
+                className="min-h-14 w-full text-base sm:col-span-2"
                 onClick={() => {
                   setHistoryPanelOpen(true);
                 }}
