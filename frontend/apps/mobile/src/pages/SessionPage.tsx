@@ -1,3 +1,4 @@
+import { useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { useNavigate, useParams } from 'react-router';
 
@@ -7,6 +8,8 @@ import {
 } from '@superion/domain';
 import { AppShell, Button, Skeleton } from '@superion/ui';
 
+import { AskAssistantModal } from '../components/AskAssistantModal';
+import { AssistantHistoryPanel } from '../components/AssistantHistoryPanel';
 import { CompactStepList } from '../components/CompactStepList';
 import { ConnectionBanner } from '../components/ConnectionBanner';
 import { ErrorBanner } from '../components/ErrorBanner';
@@ -16,6 +19,7 @@ import { Stepper } from '../components/Stepper';
 import { Timer } from '../components/Timer';
 import { VoiceIndicator } from '../components/VoiceIndicator';
 import { useEta } from '../hooks/useEta';
+import { useAssistantHistory } from '../hooks/useAssistantHistory';
 import { useSession, useSessionProcedure } from '../hooks/useSession';
 import { useSessionActions } from '../hooks/useSessionActions';
 import { useSessionStream } from '../hooks/useSessionStream';
@@ -48,6 +52,9 @@ export default function SessionPage() {
   const etaSeconds = useEta(session, procedure, totalSeconds);
   const { connectionState, voiceMode, showRetryCta, retryConnection } =
     useSessionStream(sessionId);
+  const { data: assistantHistory = [] } = useAssistantHistory(sessionId);
+  const [assistantModalOpen, setAssistantModalOpen] = useState(false);
+  const [historyPanelOpen, setHistoryPanelOpen] = useState(false);
 
   const isLoading = sessionLoading || procedureLoading;
   const error = sessionError ?? procedureError;
@@ -154,7 +161,44 @@ export default function SessionPage() {
               stepSeconds={stepSeconds}
               etaSeconds={etaSeconds}
             />
+            <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
+              <Button
+                type="button"
+                variant="secondary"
+                className="min-h-14 w-full text-base"
+                onClick={() => {
+                  setAssistantModalOpen(true);
+                }}
+              >
+                {t('assistant.openModal')}
+              </Button>
+              <Button
+                type="button"
+                variant="ghost"
+                className="min-h-14 w-full text-base"
+                onClick={() => {
+                  setHistoryPanelOpen(true);
+                }}
+              >
+                {t('assistant.viewHistory')}
+              </Button>
+            </div>
           </div>
+
+          <AskAssistantModal
+            sessionId={session.id}
+            open={assistantModalOpen}
+            onClose={() => {
+              setAssistantModalOpen(false);
+            }}
+          />
+          <AssistantHistoryPanel
+            open={historyPanelOpen}
+            onClose={() => {
+              setHistoryPanelOpen(false);
+            }}
+            entries={assistantHistory}
+          />
 
           <StepActions
             onAdvance={handleAdvance}

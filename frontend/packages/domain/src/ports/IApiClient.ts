@@ -1,3 +1,4 @@
+import type { AssistantAnswer } from '../entities/assistant';
 import type { LoginInput, LoginResponse, RefreshInput } from '../entities/auth';
 import type {
   Session,
@@ -28,6 +29,7 @@ export interface IApiClient {
   ): Promise<SessionEventResponse>;
   pauseSession(sessionId: string): Promise<void>;
   resumeSession(sessionId: string): Promise<void>;
+  askAssistant(sessionId: string, question: string): Promise<AssistantAnswer>;
   healthCheck(): Promise<{ status: string }>;
   setTokens?(accessToken: string | null, refreshToken?: string | null): void;
   reset?(): void;

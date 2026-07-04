@@ -252,6 +252,10 @@ export class HttpApiClient implements IApiClient {
     throw new NotImplementedError('HttpApiClient.resumeSession — implementar en FE-03+');
   }
 
+  async askAssistant(_sessionId: string, _question: string): Promise<import('@superion/domain').AssistantAnswer> {
+    throw new NotImplementedError('HttpApiClient.askAssistant — implementar en FE-06+');
+  }
+
   async healthCheck(): Promise<{ status: string }> {
     return this.request<{ status: string }>('/health');
   }
