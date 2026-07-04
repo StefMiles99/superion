@@ -12,6 +12,7 @@ import {
 import { resetApiClient } from '@superion/api-client';
 import { useAuthStore } from '@superion/auth';
 import { initI18n } from '@superion/i18n';
+import { resetWsClient } from '@superion/ws-client';
 
 export function createTestQueryClient() {
   return new QueryClient({
@@ -29,6 +30,7 @@ export function renderWithProviders(
   localStorage.clear();
   useAuthStore.setState({ session: null, isAuthenticated: false });
   resetApiClient();
+  resetWsClient();
 
   const queryClient = createTestQueryClient();
   const router = createMemoryRouter(routes, { initialEntries });

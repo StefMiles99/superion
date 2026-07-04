@@ -187,7 +187,67 @@
   },
   "sessionDetail": {
     "title": "Detalle de sesión",
-    "placeholder": "Vista detalle de sesión {{id}} (próximamente)"
+    "placeholder": "Vista detalle de sesión {{id}} (próximamente)",
+    "backToDashboard": "Volver al panel",
+    "sessionsList": "Sesiones activas",
+    "reportTabs": "Secciones del reporte",
+    "eventStream": "Stream de eventos",
+    "timeline": "Línea de tiempo",
+    "timelineMarker": "Evento {{type}}",
+    "stepNumber": "Paso {{number}}",
+    "photosEmpty": "Sin fotos registradas aún.",
+    "measurementsEmpty": "Sin mediciones registradas.",
+    "errorLoading": "No se pudo cargar el detalle de la sesión.",
+    "headerMeta": "{{technician}} · {{asset}} · {{status}}",
+    "tabs": {
+      "summary": "Resumen",
+      "procedure": "Procedimiento",
+      "photos": "Fotos",
+      "findings": "Hallazgos",
+      "measurements": "Medidas"
+    },
+    "measurements": {
+      "name": "Medida",
+      "value": "Valor",
+      "unit": "Unidad"
+    },
+    "events": {
+      "utterance": "Utterance del técnico",
+      "command": "Comando reconocido",
+      "assistant.answered": "Respuesta del asistente",
+      "assistantAnswered": "Respuesta del asistente",
+      "step.entered": "Paso iniciado",
+      "step.completed": "Paso completado",
+      "photo.validated": "Foto validada",
+      "photo.rejected": "Foto rechazada",
+      "photo.captured": "Foto capturada",
+      "event.appended": "Evento de voz"
+    },
+    "citationChip": "p. {{page}} · {{section}}",
+    "citationModal": {
+      "title": "Referencia del manual",
+      "body": "Página {{page}} — {{section}} (visor PDF próximamente)",
+      "close": "Cerrar"
+    },
+    "admin": {
+      "pauseRemote": "Pausar remoto",
+      "resumeRemote": "Reanudar remoto",
+      "forceAdvance": "Forzar siguiente",
+      "addNote": "Agregar nota",
+      "noteLabel": "Nota interna",
+      "saveNote": "Guardar nota",
+      "cancel": "Cancelar",
+      "confirm": "Confirmar",
+      "confirmPause": "¿Pausar remotamente la sesión {{code}}?",
+      "confirmResume": "¿Reanudar remotamente la sesión {{code}}?",
+      "confirmForceAdvance": "¿Forzar avance de paso en {{code}}?",
+      "toast": {
+        "paused": "Sesión {{code}} pausada",
+        "resumed": "Sesión {{code}} reanudada",
+        "forceAdvanced": "Paso forzado en {{code}}",
+        "noteAdded": "Nota agregada a {{code}}"
+      }
+    }
   },
   "manuals": {
     "title": "Manuales",

@@ -227,6 +227,50 @@ function cloneDashboardSessions(sessions: SessionSummary[]): SessionSummary[] {
   return sessions.map((item) => ({ ...item }));
 }
 
+function createSeedEvents(summary: SessionSummary, now: () => number): WsEvent[] {
+  const baseTime = now() - summary.elapsedSeconds * 1000;
+  const sessionId = summary.id;
+
+  return [
+    {
+      type: 'session.started',
+      seq: 1,
+      session_id: sessionId,
+      created_at: new Date(baseTime).toISOString(),
+      payload: {
+        work_order_id: summary.workOrderId,
+        started_at: new Date(baseTime).toISOString(),
+      },
+    },
+    {
+      type: 'step.entered',
+      seq: 2,
+      session_id: sessionId,
+      created_at: new Date(baseTime + 60_000).toISOString(),
+      payload: {
+        index: summary.currentStepIndex,
+        title: summary.currentStepTitle,
+        description: '',
+        estimated_minutes: 5,
+        critical: false,
+        requires_photo: false,
+        photo_criteria: null,
+      },
+    },
+    {
+      type: 'event.appended',
+      seq: 3,
+      session_id: sessionId,
+      created_at: new Date(baseTime + 120_000).toISOString(),
+      payload: {
+        type: 'utterance',
+        step_index: summary.currentStepIndex,
+        text: 'Iniciando procedimiento de mantenimiento',
+      },
+    },
+  ];
+}
+
 interface StoredSession {
   session: Session;
   procedureTemplateId: string;
@@ -239,6 +283,7 @@ interface StoredSession {
   findings: import('@superion/domain').ReportFinding[];
   measurements: import('@superion/domain').ReportMeasurement[];
   photoGallery: import('@superion/domain').ReportPhoto[];
+  events: WsEvent[];
 }
 
 export type PhotoWsEventEmitter = (event: WsEvent) => void;
@@ -380,6 +425,86 @@ export class InMemoryApiClient implements IApiClient {
   private dashboardSessions: SessionSummary[] = createDashboardSessionFixtures(() => Date.now());
   private sessionNotes = new Map<string, string[]>();
 
+  constructor() {
+    this.seedDashboardStoredSessions();
+  }
+
+  private seedDashboardStoredSessions(): void {
+    for (const summary of this.dashboardSessions) {
+      if (this.sessions.has(summary.id)) {
+        continue;
+      }
+
+      this.sessionCounter += 1;
+      this.reportCounter += 1;
+
+      const procedureTemplateId = WORK_ORDER_TEMPLATE_IDS[summary.workOrderId] ?? 'tmpl-compresor';
+      const startedAt = new Date(this.now() - summary.elapsedSeconds * 1000).toISOString();
+      const seedEvents = createSeedEvents(summary, this.now);
+
+      const session: Session = {
+        id: summary.id,
+        workOrderId: summary.workOrderId,
+        technicianId: summary.technicianId,
+        status: summary.status,
+        startedAt,
+        endedAt: summary.status === 'finalized' ? summary.lastEventAt : null,
+        currentStepIndex: summary.currentStepIndex,
+        langgraphThreadId: createThreadId(this.sessionCounter),
+        metrics: {
+          totalActiveSeconds: summary.elapsedSeconds,
+          voiceSeconds: Math.round(summary.elapsedSeconds * 0.2),
+          photosCount: 0,
+          avgStepSeconds: 60,
+        },
+        nextSeq: seedEvents.length + 1,
+      };
+
+      const measurements: import('@superion/domain').ReportMeasurement[] =
+        summary.workOrderCode === 'OT-1234'
+          ? [{ name: 'presion_psi', value: 85.2, unit: 'psi', stepIndex: 1 }]
+          : [];
+
+      this.sessions.set(summary.id, {
+        session,
+        procedureTemplateId,
+        acceptedPhotoSteps: new Set<number>(),
+        photoRetries: new Map<number, number>(),
+        nextEventSeq: seedEvents.length + 1,
+        reportId: createReportId(this.reportCounter),
+        reportVersion: 1,
+        skippedSteps: new Set<number>(),
+        findings: [
+          {
+            text: 'Condiciones generales dentro de parámetros',
+            severity: 'low',
+          },
+        ],
+        measurements,
+        photoGallery: [],
+        events: seedEvents,
+      });
+    }
+  }
+
+  private getTechnicianForSession(stored: StoredSession): User {
+    const technician = this.users.find((user) => user.id === stored.session.technicianId);
+    if (!technician) {
+      throw new ApiError('Técnico no encontrado', 404, 'SESSION_NOT_FOUND');
+    }
+    return technician;
+  }
+
+  private appendSessionEvent(stored: StoredSession, event: WsEvent): void {
+    stored.events = [...stored.events, event];
+    this.sessions.set(stored.session.id, stored);
+
+    const emit = this.photoEventEmitter;
+    if (emit) {
+      emit(event);
+    }
+  }
+
   setPhotoEventEmitter(emitter: PhotoWsEventEmitter | null): void {
     this.photoEventEmitter = emitter;
   }
@@ -410,7 +535,7 @@ export class InMemoryApiClient implements IApiClient {
       session: stored.session,
       procedureTemplateId: stored.procedureTemplateId,
       workOrder: this.getWorkOrderForSession(stored),
-      technician: this.currentUser,
+      technician: this.getTechnicianForSession(stored),
       version: stored.reportVersion,
       acceptedPhotoSteps: stored.acceptedPhotoSteps,
       skippedSteps: stored.skippedSteps,
@@ -557,6 +682,102 @@ export class InMemoryApiClient implements IApiClient {
     this.sessionNotes.set(sessionId, notes);
   }
 
+  async forceAdvance(sessionId: string, stepIndex: number): Promise<void> {
+    if (!this.currentUser) {
+      throw new AuthError('No autenticado');
+    }
+    if (this.currentUser.role === 'technician') {
+      throw new AuthError('No autorizado');
+    }
+
+    const stored = this.sessions.get(sessionId);
+    if (!stored) {
+      throw new ApiError('Sesión no encontrada', 404, 'SESSION_NOT_FOUND');
+    }
+
+    if (stored.session.status !== 'active') {
+      throw new ApiError('Solo se puede forzar avance en sesión activa', 409, 'VALIDATION_ERROR');
+    }
+
+    if (stepIndex !== stored.session.currentStepIndex) {
+      throw new ApiError('Paso fuera de orden', 409, 'STEP_OUT_OF_ORDER');
+    }
+
+    const template = FIXTURE_PROCEDURE_TEMPLATES[stored.procedureTemplateId];
+    if (!template) {
+      throw new ApiError('Plantilla no encontrada', 404, 'WORK_ORDER_NOT_FOUND');
+    }
+
+    const nextIndex = stepIndex + 1;
+    stored.session = {
+      ...stored.session,
+      currentStepIndex: nextIndex < template.steps.length ? nextIndex : stepIndex,
+      metrics: {
+        ...stored.session.metrics,
+        totalActiveSeconds: stored.session.metrics.totalActiveSeconds + 60,
+      },
+    };
+    stored.reportVersion += 1;
+
+    const completedSeq = stored.nextEventSeq;
+    stored.nextEventSeq += 1;
+    this.appendSessionEvent(stored, {
+      type: 'step.completed',
+      seq: completedSeq,
+      session_id: sessionId,
+      created_at: new Date(this.now()).toISOString(),
+      payload: {
+        index: stepIndex,
+        duration_seconds: 60,
+        completed_by: 'command',
+      },
+    });
+
+    if (nextIndex < template.steps.length) {
+      const enteredSeq = stored.nextEventSeq;
+      stored.nextEventSeq += 1;
+      const nextStep = template.steps[nextIndex]!;
+      this.appendSessionEvent(stored, {
+        type: 'step.entered',
+        seq: enteredSeq,
+        session_id: sessionId,
+        created_at: new Date(this.now()).toISOString(),
+        payload: {
+          index: nextIndex,
+          title: nextStep.title,
+          description: nextStep.description,
+          estimated_minutes: nextStep.estimatedMinutes,
+          critical: nextStep.critical,
+          requires_photo: nextStep.requiresPhoto,
+          photo_criteria: nextStep.photoCriteria,
+        },
+      });
+    }
+
+    this.sessions.set(sessionId, stored);
+    this.syncDashboardSessionFromStored(stored);
+    this.emitReportUpdated(stored, stepIndex);
+  }
+
+  async listSessionEvents(sessionId: string): Promise<WsEvent[]> {
+    if (!this.currentUser) {
+      throw new AuthError('No autenticado');
+    }
+
+    const stored = this.sessions.get(sessionId);
+    if (!stored) {
+      throw new ApiError('Sesión no encontrada', 404, 'SESSION_NOT_FOUND');
+    }
+
+    return stored.events.map((event) => ({
+      ...event,
+      payload:
+        typeof event.payload === 'object' && event.payload !== null
+          ? { ...(event.payload as Record<string, unknown>) }
+          : event.payload,
+    }));
+  }
+
   async getWorkOrder(id: string): Promise<WorkOrderDetail> {
     if (!this.currentUser) {
       throw new AuthError('No autenticado');
@@ -655,6 +876,7 @@ export class InMemoryApiClient implements IApiClient {
       ],
       measurements: [],
       photoGallery: [],
+      events: [],
     });
     this.workOrderSessionIds.set(workOrderId, sessionId);
 
@@ -1074,6 +1296,28 @@ export class InMemoryApiClient implements IApiClient {
     return { status: 'ok' };
   }
 
+  private syncDashboardSessionFromStored(stored: StoredSession): void {
+    const index = this.dashboardSessions.findIndex((item) => item.id === stored.session.id);
+    if (index === -1) {
+      return;
+    }
+
+    const current = this.dashboardSessions[index]!;
+    const template = FIXTURE_PROCEDURE_TEMPLATES[stored.procedureTemplateId];
+    const stepTitle =
+      template?.steps[stored.session.currentStepIndex]?.title ?? current.currentStepTitle;
+
+    this.dashboardSessions[index] = {
+      ...current,
+      status: stored.session.status,
+      currentStepIndex: stored.session.currentStepIndex,
+      currentStepTitle: stepTitle,
+      elapsedSeconds: stored.session.metrics.totalActiveSeconds,
+      lastEventType: 'step.completed',
+      lastEventAt: new Date(this.now()).toISOString(),
+    };
+  }
+
   private syncDashboardSessionStatus(
     sessionId: string,
     status: SessionSummary['status'],
@@ -1125,5 +1369,6 @@ export class InMemoryApiClient implements IApiClient {
     this.photoEventEmitter = null;
     this.dashboardSessions = createDashboardSessionFixtures(this.now);
     this.sessionNotes.clear();
+    this.seedDashboardStoredSessions();
   }
 }

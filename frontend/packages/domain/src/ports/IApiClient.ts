@@ -11,6 +11,7 @@ import type {
 } from '../entities/session';
 import type { User } from '../entities/user';
 import type { WorkOrder, WorkOrderDetail, WorkOrderFilter } from '../entities/work_order';
+import type { WsEvent } from './IWsClient';
 
 export interface Paginated<T> {
   items: T[];
@@ -26,6 +27,8 @@ export interface IApiClient {
   listActiveSessions(plantId: string): Promise<SessionSummary[]>;
   getWorkOrder(id: string): Promise<WorkOrderDetail>;
   addSessionNote?(sessionId: string, note: string): Promise<void>;
+  forceAdvance?(sessionId: string, stepIndex: number): Promise<void>;
+  listSessionEvents?(sessionId: string): Promise<WsEvent[]>;
   startSession(workOrderId: string): Promise<SessionStart>;
   getSession(id: string): Promise<Session>;
   postSessionEvent(
