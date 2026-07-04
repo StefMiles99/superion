@@ -8,6 +8,13 @@ export const UserSchema = z.object({
   plantId: z.string().uuid(),
 });
 
+export const AuthSessionSchema = z.object({
+  accessToken: z.string().min(1),
+  refreshToken: z.string().min(1),
+  expiresAt: z.number().int().positive(),
+  user: UserSchema,
+});
+
 export const WorkOrderSchema = z.object({
   id: z.string().uuid(),
   code: z.string().min(1),

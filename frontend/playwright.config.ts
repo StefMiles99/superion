@@ -31,13 +31,13 @@ export default defineConfig({
   ],
   webServer: [
     {
-      command: 'pnpm --filter @superion/mobile dev',
+      command: 'corepack pnpm --filter @superion/mobile dev',
       url: 'http://localhost:5173',
       reuseExistingServer: !process.env.CI,
       timeout: 120_000,
     },
     {
-      command: 'pnpm --filter @superion/desktop dev',
+      command: 'corepack pnpm --filter @superion/desktop dev',
       url: 'http://localhost:5174',
       reuseExistingServer: !process.env.CI,
       timeout: 120_000,

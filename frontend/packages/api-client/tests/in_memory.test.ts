@@ -3,13 +3,9 @@ import { describe, expect, it } from 'vitest';
 import { InMemoryApiClient } from '../src/in_memory';
 
 describe('InMemoryApiClient', () => {
-  it('returns fixture user from getCurrentUser', async () => {
+  it('requires authentication for me()', async () => {
     const client = new InMemoryApiClient();
-    const user = await client.getCurrentUser();
-
-    expect(user.email).toBe('juan@planta.com');
-    expect(user.fullName).toBe('Juan Pérez');
-    expect(user.role).toBe('technician');
+    await expect(client.me()).rejects.toThrow('No autenticado');
   });
 
   it('returns work orders list', async () => {
@@ -23,6 +19,6 @@ describe('InMemoryApiClient', () => {
 
   it('reset restores fixtures without error', () => {
     const client = new InMemoryApiClient();
-    expect(() => client.reset?.()).not.toThrow();
+    expect(() => client.reset()).not.toThrow();
   });
 });
