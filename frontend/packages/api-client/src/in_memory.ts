@@ -1,4 +1,5 @@
 import type { LoginInput, LoginResponse, RefreshInput } from '@superion/domain';
+import type { AssistantAnswer } from '@superion/domain';
 import { AuthError } from '@superion/domain';
 import type {
   IApiClient,
@@ -155,6 +156,34 @@ function createSessionId(counter: number): string {
 
 function createThreadId(counter: number): string {
   return `990e8400-e29b-41d4-a716-44665544${String(counter).padStart(4, '0')}`;
+}
+
+const MOCK_ASSISTANT_CITATIONS: AssistantAnswer['citations'] = [
+  {
+    manualId: 'manual-comp-1',
+    manualVersion: 3,
+    page: 42,
+    sectionPath: '4. Mantenimiento > 4.3 Válvulas',
+    chunkId: 'chunk-42',
+    snippet: 'Torque de apriete: 85 N·m ± 5%.',
+  },
+  {
+    manualId: 'manual-comp-1',
+    manualVersion: 3,
+    page: 45,
+    sectionPath: '4. Mantenimiento > 4.5 Mantenimiento',
+    chunkId: 'chunk-45',
+    snippet: 'Verificar torque periódicamente.',
+  },
+];
+
+function buildMockAssistantAnswer(question: string): AssistantAnswer {
+  return {
+    query: question,
+    answerText: 'El torque de apriete es 85 N·m ± 5%.',
+    citations: MOCK_ASSISTANT_CITATIONS,
+    confidence: 0.82,
+  };
 }
 
 function base64Encode(value: string): string {
@@ -539,6 +568,32 @@ export class InMemoryApiClient implements IApiClient {
         asset: { ...workOrder.asset },
       };
     }
+  }
+
+  async askAssistant(sessionId: string, question: string): Promise<AssistantAnswer> {
+    if (!this.currentUser) {
+      throw new AuthError('No autenticado');
+    }
+
+    const stored = this.sessions.get(sessionId);
+    if (!stored) {
+      throw new ApiError('Sesión no encontrada', 404, 'SESSION_NOT_FOUND');
+    }
+
+    if (stored.session.status === 'finalized') {
+      throw new ApiError('La sesión ya está finalizada', 409, 'SESSION_ALREADY_FINALIZED');
+    }
+
+    const trimmed = question.trim();
+    if (!trimmed) {
+      throw new ApiError('La pregunta no puede estar vacía', 400, 'VALIDATION_ERROR');
+    }
+
+    await new Promise((resolve) => {
+      setTimeout(resolve, 150);
+    });
+
+    return buildMockAssistantAnswer(trimmed);
   }
 
   async healthCheck(): Promise<{ status: string }> {

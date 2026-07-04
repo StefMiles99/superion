@@ -1,3 +1,4 @@
+export * from './entities/assistant';
 export * from './entities/auth';
 export * from './entities/user';
 export * from './entities/work_order';

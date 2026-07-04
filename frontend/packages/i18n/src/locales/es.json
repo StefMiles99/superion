@@ -93,6 +93,37 @@
       "retry": "Reintentar"
     }
   },
+  "assistant": {
+    "openModal": "¿Tengo una duda?",
+    "viewHistory": "Ver historial",
+    "historyTitle": "Historial de dudas",
+    "modal": {
+      "title": "¿Tengo una duda?",
+      "close": "Cerrar",
+      "inputLabel": "Escribe tu duda",
+      "placeholder": "Ej.: ¿cuál es el torque de apriete?",
+      "submit": "Enviar",
+      "loading": "Buscando en el manual…",
+      "error": "No se pudo obtener una respuesta. Inténtalo de nuevo.",
+      "voicePlaceholder": "Dictar duda (próximamente)",
+      "voiceIcon": "🎤"
+    },
+    "answer": {
+      "citationsHeading": "Referencias del manual"
+    },
+    "citation": {
+      "label": "📄 p. {{page}}, sección {{section}}",
+      "openManual": "Abrir manual en página {{page}}, sección {{section}}"
+    },
+    "manualViewer": {
+      "title": "Manual — p. {{page}}, {{section}}",
+      "iframeTitle": "Vista del manual, página {{page}}"
+    },
+    "history": {
+      "empty": "Aún no hay dudas en esta sesión.",
+      "close": "Cerrar historial"
+    }
+  },
   "dashboard": {
     "title": "Panel de supervisión",
     "placeholder": "Dashboard de sesiones (próximamente)"
