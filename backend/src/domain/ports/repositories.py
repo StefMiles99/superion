@@ -7,6 +7,8 @@ from typing import Protocol
 from domain.entities.asset import Asset
 from domain.entities.evidence_photo import EvidencePhoto
 from domain.entities.maintenance_session import MaintenanceSession
+from domain.entities.manual import Manual
+from domain.entities.manual_chunk import ManualChunk
 from domain.entities.procedure_template import ProcedureTemplate
 from domain.entities.session_event import SessionEvent
 from domain.entities.user import User
@@ -124,3 +126,36 @@ class IPhotoRepository(Protocol):
     async def get_by_event_id(self, session_id: str, event_id: str) -> EvidencePhoto | None: ...
 
     async def count_rejected_for_step(self, session_id: str, step_index: int) -> int: ...
+
+
+class IManualRepository(Protocol):
+    """Persistencia de manuales técnicos."""
+
+    async def save(self, manual: Manual) -> None: ...
+
+    async def get_by_id(self, manual_id: str) -> Manual | None: ...
+
+    async def list_all(self) -> list[Manual]: ...
+
+    async def get_active_by_asset_model(self, asset_model: str) -> Manual | None: ...
+
+    async def next_version_for_asset_model(self, asset_model: str) -> int: ...
+
+
+class IManualChunkRepository(Protocol):
+    """Persistencia e indexación de chunks de manual."""
+
+    async def save_batch(self, chunks: list[ManualChunk]) -> None: ...
+
+    async def delete_by_manual_id(self, manual_id: str) -> None: ...
+
+    async def count_by_manual_id(self, manual_id: str) -> int: ...
+
+    async def hybrid_search(
+        self,
+        *,
+        manual_id: str,
+        question: str,
+        query_embedding: tuple[float, ...],
+        top_k: int,
+    ) -> list[tuple[ManualChunk, float]]: ...

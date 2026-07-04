@@ -55,3 +55,69 @@ class IPhotoValidator(Protocol):
     """Validación de fotos de evidencia (VLM mock o real)."""
 
     async def validate(self, image_bytes: bytes, criteria: str) -> PhotoValidationResult: ...
+
+
+class PageText(Protocol):
+    """Texto extraído de una página PDF."""
+
+    @property
+    def page(self) -> int: ...
+
+    @property
+    def text(self) -> str: ...
+
+
+class TextChunkData(Protocol):
+    """Fragmento de texto antes de embedding."""
+
+    @property
+    def page(self) -> int: ...
+
+    @property
+    def section_path(self) -> str: ...
+
+    @property
+    def content(self) -> str: ...
+
+
+class IPdfExtractor(Protocol):
+    """Extracción de texto de PDF."""
+
+    def extract_pages(self, pdf_bytes: bytes) -> list[PageText]: ...
+
+
+class IChunkerService(Protocol):
+    """Chunking jerárquico de páginas."""
+
+    def chunk_pages(self, pages: list[PageText]) -> list[TextChunkData]: ...
+
+
+class IEmbeddingService(Protocol):
+    """Generación de embeddings."""
+
+    def embed(self, text: str) -> tuple[float, ...]: ...
+
+    def embed_batch(self, texts: list[str]) -> list[tuple[float, ...]]: ...
+
+    @property
+    def dimensions(self) -> int: ...
+
+
+class ScoredChunk(Protocol):
+    """Chunk con score de retrieval."""
+
+    @property
+    def chunk(self) -> object: ...
+
+    @property
+    def score(self) -> float: ...
+
+
+class IRerankerService(Protocol):
+    """Reordenación de candidatos RAG."""
+
+    def rerank(
+        self,
+        question: str,
+        candidates: list[tuple[object, float]],
+    ) -> list[tuple[object, float]]: ...
