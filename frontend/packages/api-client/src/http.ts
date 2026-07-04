@@ -8,7 +8,7 @@ import type { IApiClient, Paginated } from '@superion/domain';
 import type { Role, User } from '@superion/domain';
 import type { WorkOrder, WorkOrderFilter } from '@superion/domain';
 
-import { ApiError } from './errors';
+import { ApiError, NotImplementedError } from './errors';
 
 interface AuthApiUser {
   id: string;
@@ -223,6 +223,33 @@ export class HttpApiClient implements IApiClient {
       })),
       nextCursor: data.next_cursor,
     };
+  }
+
+  async getWorkOrder(_id: string): Promise<import('@superion/domain').WorkOrderDetail> {
+    throw new NotImplementedError('HttpApiClient.getWorkOrder — implementar en FE-03+');
+  }
+
+  async startSession(_workOrderId: string): Promise<import('@superion/domain').SessionStart> {
+    throw new NotImplementedError('HttpApiClient.startSession — implementar en FE-03+');
+  }
+
+  async getSession(_id: string): Promise<import('@superion/domain').Session> {
+    throw new NotImplementedError('HttpApiClient.getSession — implementar en FE-03+');
+  }
+
+  async postSessionEvent(
+    _sessionId: string,
+    _event: import('@superion/domain').SessionEventInput,
+  ): Promise<import('@superion/domain').SessionEventResponse> {
+    throw new NotImplementedError('HttpApiClient.postSessionEvent — implementar en FE-03+');
+  }
+
+  async pauseSession(_sessionId: string): Promise<void> {
+    throw new NotImplementedError('HttpApiClient.pauseSession — implementar en FE-03+');
+  }
+
+  async resumeSession(_sessionId: string): Promise<void> {
+    throw new NotImplementedError('HttpApiClient.resumeSession — implementar en FE-03+');
   }
 
   async healthCheck(): Promise<{ status: string }> {

@@ -23,6 +23,13 @@ export interface WorkOrder {
   asset: WorkOrderAsset;
 }
 
+export interface WorkOrderDetail extends WorkOrder {
+  description: string;
+  notes: string;
+  linkedWoIds: string[];
+  procedureTemplateId: string;
+}
+
 export interface WorkOrderFilter {
   status?: WorkOrderStatus;
   priority?: WorkOrderPriority;

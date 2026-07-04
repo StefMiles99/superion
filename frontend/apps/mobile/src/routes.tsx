@@ -6,6 +6,8 @@ import { Skeleton } from '@superion/ui';
 
 const LoginPage = lazy(() => import('./pages/LoginPage'));
 const WorkOrdersPage = lazy(() => import('./pages/WorkOrdersPage'));
+const WorkOrderDetailPage = lazy(() => import('./pages/WorkOrderDetailPage'));
+const SessionPage = lazy(() => import('./pages/SessionPage'));
 
 function PageFallback() {
   return (
@@ -29,6 +31,22 @@ export const router = createBrowserRouter([
     element: withSuspense(
       <RequireAuth>
         <WorkOrdersPage />
+      </RequireAuth>,
+    ),
+  },
+  {
+    path: '/work-orders/:id',
+    element: withSuspense(
+      <RequireAuth>
+        <WorkOrderDetailPage />
+      </RequireAuth>,
+    ),
+  },
+  {
+    path: '/sessions/:id',
+    element: withSuspense(
+      <RequireAuth>
+        <SessionPage />
       </RequireAuth>,
     ),
   },
