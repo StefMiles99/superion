@@ -112,4 +112,7 @@ export const WS_EVENT_PATTERNS = {
   REPORT: 'report.*',
   EVENT_APPENDED: 'event.appended',
   SESSION: 'session.*',
+  ADMIN_SESSIONS: 'session.*',
 } as const;
+
+export const WS_ADMIN_CHANNEL = 'admin:sessions' as const;

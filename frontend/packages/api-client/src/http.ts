@@ -225,8 +225,16 @@ export class HttpApiClient implements IApiClient {
     };
   }
 
+  async listActiveSessions(_plantId: string): Promise<import('@superion/domain').SessionSummary[]> {
+    throw new NotImplementedError('HttpApiClient.listActiveSessions — implementar en FE-09+');
+  }
+
   async getWorkOrder(_id: string): Promise<import('@superion/domain').WorkOrderDetail> {
     throw new NotImplementedError('HttpApiClient.getWorkOrder — implementar en FE-03+');
+  }
+
+  async addSessionNote(_sessionId: string, _note: string): Promise<void> {
+    throw new NotImplementedError('HttpApiClient.addSessionNote — implementar en FE-09+');
   }
 
   async startSession(_workOrderId: string): Promise<import('@superion/domain').SessionStart> {

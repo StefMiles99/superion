@@ -19,11 +19,22 @@ export class InMemoryWsClient implements IWsClient {
   private stateHandlers = new Set<WsConnectionStateHandler>();
   private connectionState: WsConnectionState = 'closed';
   private sessionId: string | null = null;
+  private adminPlantId: string | null = null;
   private token: string | null = null;
   private lastSeq = 0;
 
   async connect(sessionId: string, token: string, lastSeq = readLastSeq(sessionId)): Promise<void> {
     this.sessionId = sessionId;
+    this.adminPlantId = null;
+    this.token = token;
+    this.lastSeq = lastSeq;
+    this.setConnectionState('connecting');
+    this.setConnectionState('open');
+  }
+
+  async connectAdmin(plantId: string, token: string, lastSeq = 0): Promise<void> {
+    this.adminPlantId = plantId;
+    this.sessionId = null;
     this.token = token;
     this.lastSeq = lastSeq;
     this.setConnectionState('connecting');
@@ -57,7 +68,16 @@ export class InMemoryWsClient implements IWsClient {
   }
 
   async reconnect(): Promise<void> {
-    if (!this.sessionId || !this.token) {
+    if (!this.token) {
+      return;
+    }
+
+    if (this.adminPlantId) {
+      await this.connectAdmin(this.adminPlantId, this.token, this.lastSeq);
+      return;
+    }
+
+    if (!this.sessionId) {
       return;
     }
 
@@ -85,6 +105,7 @@ export class InMemoryWsClient implements IWsClient {
     this.subscriptions = [];
     this.stateHandlers.clear();
     this.sessionId = null;
+    this.adminPlantId = null;
     this.token = null;
     this.lastSeq = 0;
     this.connectionState = 'closed';

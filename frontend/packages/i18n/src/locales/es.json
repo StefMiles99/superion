@@ -126,7 +126,68 @@
   },
   "dashboard": {
     "title": "Panel de supervisión",
-    "placeholder": "Dashboard de sesiones (próximamente)"
+    "placeholder": "Dashboard de sesiones (próximamente)",
+    "errorLoading": "No se pudieron cargar las sesiones activas.",
+    "empty": "No hay sesiones con los filtros actuales.",
+    "stepLabel": "Paso {{number}} — {{title}}",
+    "columns": {
+      "workOrder": "OT",
+      "asset": "Equipo",
+      "technician": "Técnico",
+      "step": "Paso actual",
+      "elapsed": "Tiempo",
+      "lastEvent": "Último evento",
+      "actions": "Acciones"
+    },
+    "filters": {
+      "plant": "Planta",
+      "status": "Estado",
+      "technician": "Técnico",
+      "all": "Todos",
+      "allTechnicians": "Todos los técnicos",
+      "active": "Activas",
+      "paused": "Pausadas",
+      "finalized": "Finalizadas"
+    },
+    "status": {
+      "active": "Activa",
+      "paused": "Pausada",
+      "finalized": "Finalizada",
+      "aborted": "Abortada"
+    },
+    "events": {
+      "session.started": "Sesión iniciada",
+      "session.paused": "Sesión pausada",
+      "session.resumed": "Sesión reanudada",
+      "session.closed": "Sesión cerrada",
+      "step.entered": "Paso iniciado",
+      "step.completed": "Paso completado"
+    },
+    "actions": {
+      "menu": "Acciones",
+      "pause": "Pausar",
+      "resume": "Reanudar",
+      "addNote": "Agregar nota",
+      "noteLabel": "Nota interna",
+      "saveNote": "Guardar nota"
+    },
+    "confirmPause": "¿Pausar remotamente la sesión {{code}}?",
+    "confirmResume": "¿Reanudar remotamente la sesión {{code}}?",
+    "confirmSubmit": "Confirmar",
+    "confirmCancel": "Cancelar",
+    "toast": {
+      "paused": "Sesión {{code}} pausada",
+      "resumed": "Sesión {{code}} reanudada",
+      "noteAdded": "Nota agregada a {{code}}"
+    },
+    "connection": {
+      "connecting": "Conectando…",
+      "reconnecting": "Reconectando…"
+    }
+  },
+  "sessionDetail": {
+    "title": "Detalle de sesión",
+    "placeholder": "Vista detalle de sesión {{id}} (próximamente)"
   },
   "manuals": {
     "title": "Manuales",

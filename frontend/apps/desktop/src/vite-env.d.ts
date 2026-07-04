@@ -22,4 +22,5 @@ interface Window {
     api: import('@superion/domain').IApiClient;
     ws: import('@superion/domain').IWsClient;
   };
+  __mockWs?: import('@superion/domain').IWsClient;
 }

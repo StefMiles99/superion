@@ -13,6 +13,7 @@ export type WsConnectionStateHandler = (state: WsConnectionState) => void;
 
 export interface IWsClient {
   connect(sessionId: string, token: string, lastSeq?: number): Promise<void>;
+  connectAdmin?(plantId: string, token: string, lastSeq?: number): Promise<void>;
   subscribe(eventPattern: string, handler: WsEventHandler): () => void;
   onConnectionStateChange?(handler: WsConnectionStateHandler): () => void;
   getConnectionState?(): WsConnectionState;

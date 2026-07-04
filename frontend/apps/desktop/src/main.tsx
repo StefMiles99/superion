@@ -2,7 +2,7 @@ import { StrictMode } from 'react';
 import { createRoot } from 'react-dom/client';
 import { I18nextProvider } from 'react-i18next';
 
-import { getApiClient } from '@superion/api-client';
+import { getApiClient, InMemoryApiClient } from '@superion/api-client';
 import { syncApiTokensFromSession } from '@superion/auth';
 import { getEnv } from '@superion/config';
 import { initI18n } from '@superion/i18n';
@@ -17,10 +17,17 @@ const i18n = initI18n(env.VITE_DEFAULT_LOCALE);
 const api = getApiClient();
 const ws = getWsClient();
 
+if (api instanceof InMemoryApiClient && typeof ws.emit === 'function') {
+  api.setPhotoEventEmitter((event) => {
+    ws.emit?.(event);
+  });
+}
+
 syncApiTokensFromSession();
 
 if (import.meta.env.DEV || import.meta.env.MODE === 'test') {
   window.__superion = { api, ws };
+  window.__mockWs = ws;
 }
 
 createRoot(document.getElementById('root')!).render(
