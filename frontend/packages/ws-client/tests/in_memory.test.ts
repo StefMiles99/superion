@@ -9,8 +9,8 @@ describe('InMemoryWsClient', () => {
     const client = new InMemoryWsClient();
     const received: WsEvent[] = [];
 
-    await client.connect();
-    client.subscribe((event) => {
+    await client.connect('sess-1', 'token-1');
+    client.subscribe('*', (event) => {
       received.push(event);
     });
 
@@ -25,8 +25,8 @@ describe('InMemoryWsClient', () => {
     const client = new InMemoryWsClient();
     const received: WsEvent[] = [];
 
-    await client.connect();
-    const unsubscribe = client.subscribe((event) => {
+    await client.connect('sess-1', 'token-1');
+    const unsubscribe = client.subscribe('*', (event) => {
       received.push(event);
     });
     unsubscribe();
@@ -39,7 +39,7 @@ describe('InMemoryWsClient', () => {
     const client = new InMemoryWsClient();
     const received: WsEvent[] = [];
 
-    client.subscribe((event) => {
+    client.subscribe('*', (event) => {
       received.push(event);
     });
     client.emit!({ type: 'ping', payload: null });

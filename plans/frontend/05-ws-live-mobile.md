@@ -1,6 +1,6 @@
 # FE-05 — Mobile · WebSocket live updates
 
-**Estado:** ⏳
+**Estado:** ✅
 **Depende de:** FE-04
 **Desbloquea:** FE-06, FE-07, FE-08
 **PRD features:** M4.7, M9.5

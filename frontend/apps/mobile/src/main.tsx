@@ -21,9 +21,8 @@ syncApiTokensFromSession();
 
 if (import.meta.env.DEV || import.meta.env.MODE === 'test') {
   window.__superion = { api, ws };
+  window.__mockWs = ws;
 }
-
-void ws.connect();
 
 createRoot(document.getElementById('root')!).render(
   <StrictMode>

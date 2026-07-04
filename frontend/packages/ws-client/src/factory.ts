@@ -17,7 +17,7 @@ export function getWsClient(): IWsClient {
     return singleton;
   }
   if (env.VITE_WS_MODE === 'real') {
-    singleton = new RealWsClient(env.VITE_WS_BASE_URL);
+    singleton = new RealWsClient(env.VITE_WS_BASE_URL, env.VITE_API_BASE_URL);
     return singleton;
   }
 
@@ -25,5 +25,8 @@ export function getWsClient(): IWsClient {
 }
 
 export function resetWsClient(): void {
+  if (singleton?.reset) {
+    singleton.reset();
+  }
   singleton = null;
 }

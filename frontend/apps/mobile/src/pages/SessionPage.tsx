@@ -8,14 +8,17 @@ import {
 import { AppShell, Button, Skeleton } from '@superion/ui';
 
 import { CompactStepList } from '../components/CompactStepList';
+import { ConnectionBanner } from '../components/ConnectionBanner';
 import { ErrorBanner } from '../components/ErrorBanner';
 import { StepActions } from '../components/StepActions';
 import { StepCard } from '../components/StepCard';
 import { Stepper } from '../components/Stepper';
 import { Timer } from '../components/Timer';
+import { VoiceIndicator } from '../components/VoiceIndicator';
 import { useEta } from '../hooks/useEta';
 import { useSession, useSessionProcedure } from '../hooks/useSession';
 import { useSessionActions } from '../hooks/useSessionActions';
+import { useSessionStream } from '../hooks/useSessionStream';
 import { useSessionTimers } from '../hooks/useSessionTimers';
 import { useWorkOrder } from '../hooks/useWorkOrder';
 
@@ -43,6 +46,8 @@ export default function SessionPage() {
 
   const { totalSeconds, stepSeconds } = useSessionTimers(session);
   const etaSeconds = useEta(session, procedure, totalSeconds);
+  const { connectionState, voiceMode, showRetryCta, retryConnection } =
+    useSessionStream(sessionId);
 
   const isLoading = sessionLoading || procedureLoading;
   const error = sessionError ?? procedureError;
@@ -124,6 +129,12 @@ export default function SessionPage() {
 
       {session && procedure && currentStep ? (
         <div className="flex min-h-[calc(100vh-4rem)] flex-col">
+          <ConnectionBanner
+            connectionState={connectionState}
+            showRetryCta={showRetryCta}
+            onRetry={retryConnection}
+          />
+          <VoiceIndicator active={voiceMode !== 'idle'} mode={voiceMode} />
           {photoErrorMessage ? (
             <div
               role="alert"
