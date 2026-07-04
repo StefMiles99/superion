@@ -5,6 +5,10 @@ import { useQueryClient } from '@tanstack/react-query';
 import { useCallback, useEffect, useRef, useState } from 'react';
 
 import { applyWsEvent, type VoiceIndicatorMode } from './applyWsEvent';
+import {
+  addAcceptedPhotoStep,
+  setStepThumbnail,
+} from './photo_state';
 
 const STREAM_PATTERNS = [
   WS_EVENT_PATTERNS.STEP,
@@ -53,6 +57,17 @@ export function useSessionStream(sessionId: string | undefined): SessionStreamSt
       }
       if (result.voiceMode) {
         setVoiceMode(result.voiceMode);
+      }
+      if (result.acceptedPhotoStepIndex !== null) {
+        addAcceptedPhotoStep(queryClient, sessionId, result.acceptedPhotoStepIndex);
+      }
+      if (result.photoThumbnail) {
+        setStepThumbnail(
+          queryClient,
+          sessionId,
+          result.photoThumbnail.stepIndex,
+          result.photoThumbnail.url,
+        );
       }
 
       if (event.type.startsWith('assistant.') || event.type.startsWith('report.')) {

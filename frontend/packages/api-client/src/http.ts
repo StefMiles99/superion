@@ -256,6 +256,16 @@ export class HttpApiClient implements IApiClient {
     throw new NotImplementedError('HttpApiClient.askAssistant — implementar en FE-06+');
   }
 
+  async uploadPhoto(
+    _sessionId: string,
+    _file: Blob,
+    _stepIndex: number,
+    _criteria?: string,
+    _eventId?: string,
+  ): Promise<import('@superion/domain').PhotoUploadResponse> {
+    throw new NotImplementedError('HttpApiClient.uploadPhoto — implementar en FE-07+');
+  }
+
   async healthCheck(): Promise<{ status: string }> {
     return this.request<{ status: string }>('/health');
   }

@@ -7,6 +7,8 @@ export interface ApplyWsEventResult {
   session: Session | null;
   procedure: ProcedureTemplate | null;
   voiceMode: VoiceIndicatorMode | null;
+  acceptedPhotoStepIndex: number | null;
+  photoThumbnail: { stepIndex: number; url: string } | null;
 }
 
 function isRecord(value: unknown): value is Record<string, unknown> {
@@ -44,12 +46,20 @@ export function applyWsEvent(
   event: WsEvent,
 ): ApplyWsEventResult {
   if (!session) {
-    return { session: null, procedure: null, voiceMode: null };
+    return {
+      session: null,
+      procedure: null,
+      voiceMode: null,
+      acceptedPhotoStepIndex: null,
+      photoThumbnail: null,
+    };
   }
 
   let nextSession: Session = session;
   let nextProcedure: ProcedureTemplate | null = procedure ?? null;
   let voiceMode: VoiceIndicatorMode | null = null;
+  let acceptedPhotoStepIndex: number | null = null;
+  let photoThumbnail: { stepIndex: number; url: string } | null = null;
 
   switch (event.type) {
     case 'step.entered': {
@@ -97,7 +107,16 @@ export function applyWsEvent(
     case 'session.closed':
       nextSession = { ...session, status: 'finalized', endedAt: new Date().toISOString() };
       break;
-    case 'photo.captured':
+    case 'photo.captured': {
+      if (isRecord(event.payload)) {
+        const stepIndex =
+          typeof event.payload.step_index === 'number' ? event.payload.step_index : null;
+        const thumbnailUrl =
+          typeof event.payload.thumbnail_url === 'string' ? event.payload.thumbnail_url : null;
+        if (stepIndex !== null && thumbnailUrl) {
+          photoThumbnail = { stepIndex, url: thumbnailUrl };
+        }
+      }
       nextSession = {
         ...session,
         metrics: {
@@ -106,6 +125,13 @@ export function applyWsEvent(
         },
       };
       break;
+    }
+    case 'photo.validated': {
+      if (isRecord(event.payload) && typeof event.payload.step_index === 'number') {
+        acceptedPhotoStepIndex = event.payload.step_index;
+      }
+      break;
+    }
     case 'event.appended': {
       const payload = parseEventAppendedPayload(event.payload);
       if (payload?.type === 'turn.speaker_changed') {
@@ -129,5 +155,7 @@ export function applyWsEvent(
     session: nextSession,
     procedure: nextProcedure,
     voiceMode,
+    acceptedPhotoStepIndex,
+    photoThumbnail,
   };
 }

@@ -1,5 +1,6 @@
 import type { AssistantAnswer } from '../entities/assistant';
 import type { LoginInput, LoginResponse, RefreshInput } from '../entities/auth';
+import type { PhotoUploadResponse } from '../entities/photo';
 import type {
   Session,
   SessionEventInput,
@@ -30,6 +31,13 @@ export interface IApiClient {
   pauseSession(sessionId: string): Promise<void>;
   resumeSession(sessionId: string): Promise<void>;
   askAssistant(sessionId: string, question: string): Promise<AssistantAnswer>;
+  uploadPhoto(
+    sessionId: string,
+    file: Blob,
+    stepIndex: number,
+    criteria?: string,
+    eventId?: string,
+  ): Promise<PhotoUploadResponse>;
   healthCheck(): Promise<{ status: string }>;
   setTokens?(accessToken: string | null, refreshToken?: string | null): void;
   reset?(): void;
