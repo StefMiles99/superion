@@ -28,6 +28,11 @@ class Settings(BaseSettings):
     STORAGE: Literal["memory", "supabase"] = "memory"
     PDF: Literal["mock", "weasyprint"] = "mock"
     AUTH: Literal["memory", "supabase_auth"] = "memory"
+    API_BASE_URL: str = "http://localhost:8000"
+    PHOTO_VALIDATOR: Literal["mock", "openrouter_vlm"] = "mock"
+    PHOTO_MAX_SIZE_MB: int = 10
+    PHOTO_MAX_RETRIES: int = 3
+    SIGNED_URL_TTL_SECONDS: int = 900
     JWT_SECRET: str = Field(default="change-me-32-bytes-minimum-secret-key")
     JWT_ALGORITHM: str = "HS256"
     ACCESS_TOKEN_TTL_SECONDS: int = 3600

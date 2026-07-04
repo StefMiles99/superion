@@ -5,6 +5,7 @@ from __future__ import annotations
 from typing import Protocol
 
 from domain.entities.asset import Asset
+from domain.entities.evidence_photo import EvidencePhoto
 from domain.entities.maintenance_session import MaintenanceSession
 from domain.entities.procedure_template import ProcedureTemplate
 from domain.entities.session_event import SessionEvent
@@ -104,3 +105,22 @@ class ISessionEventRepository(Protocol):
     async def next_seq(self, session_id: str) -> int: ...
 
     async def has_accepted_photo(self, session_id: str, step_index: int) -> bool: ...
+
+
+class IPhotoRepository(Protocol):
+    """Persistencia de fotos de evidencia."""
+
+    async def save(self, photo: EvidencePhoto) -> None: ...
+
+    async def get_by_id(self, photo_id: str) -> EvidencePhoto | None: ...
+
+    async def get_by_id_for_technician(
+        self,
+        photo_id: str,
+        *,
+        technician_id: str,
+    ) -> EvidencePhoto | None: ...
+
+    async def get_by_event_id(self, session_id: str, event_id: str) -> EvidencePhoto | None: ...
+
+    async def count_rejected_for_step(self, session_id: str, step_index: int) -> int: ...

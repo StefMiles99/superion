@@ -33,3 +33,25 @@ class ITokenService(Protocol):
     def decode_access_token(self, token: str) -> dict[str, Any]: ...
 
     def decode_refresh_token(self, token: str) -> dict[str, Any]: ...
+
+
+class PhotoValidationResult(Protocol):
+    """Resultado de validación VLM."""
+
+    @property
+    def ok(self) -> bool: ...
+
+    @property
+    def feedback(self) -> str: ...
+
+    @property
+    def confidence(self) -> float: ...
+
+    @property
+    def model_version(self) -> str: ...
+
+
+class IPhotoValidator(Protocol):
+    """Validación de fotos de evidencia (VLM mock o real)."""
+
+    async def validate(self, image_bytes: bytes, criteria: str) -> PhotoValidationResult: ...
