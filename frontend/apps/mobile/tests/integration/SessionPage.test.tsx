@@ -44,17 +44,17 @@ describe('SessionPage integration (mobile)', () => {
     const user = userEvent.setup();
 
     await waitFor(() => {
-      expect(screen.getByText('Paso 1 de 12')).toBeInTheDocument();
+      expect(screen.getByTestId('stepper')).toHaveTextContent('Paso 1 de 12');
     });
 
-    expect(screen.getByText('Preparar área de trabajo')).toBeInTheDocument();
+    expect(screen.getByTestId('step-card')).toHaveTextContent('Preparar área de trabajo');
 
     await user.click(screen.getByRole('button', { name: 'Siguiente paso' }));
 
     await waitFor(() => {
-      expect(screen.getByText('Paso 2 de 12')).toBeInTheDocument();
+      expect(screen.getByTestId('stepper')).toHaveTextContent('Paso 2 de 12');
     });
 
-    expect(screen.getByText('Verificar EPP')).toBeInTheDocument();
+    expect(screen.getByTestId('step-card')).toHaveTextContent('Verificar EPP');
   });
 });
