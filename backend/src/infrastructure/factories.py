@@ -5,6 +5,7 @@ from __future__ import annotations
 from domain.ports.event_bus import IEventBus
 from domain.ports.repositories import (
     IAssetRepository,
+    IPhotoRepository,
     IProcedureTemplateRepository,
     ISessionEventRepository,
     ISessionRepository,
@@ -12,13 +13,16 @@ from domain.ports.repositories import (
     IUserRepository,
     IWorkOrderRepository,
 )
-from domain.ports.services import IClock, IPasswordHasher, ITokenService
+from domain.ports.services import IClock, IPasswordHasher, IPhotoValidator, ITokenService
+from domain.ports.storage import IObjectStorage
 from domain.services.password_hasher import BcryptPasswordHasher
+from domain.services.photo_validator import MockPhotoValidator
 from domain.services.system_clock import SystemClock
 from domain.services.token_service import JwtTokenService
 from infrastructure.config import Settings
 from infrastructure.persistence.in_memory.asset_repository import InMemoryAssetRepository
 from infrastructure.persistence.in_memory.clock import InMemoryClock
+from infrastructure.persistence.in_memory.photo_repository import InMemoryPhotoRepository
 from infrastructure.persistence.in_memory.procedure_template_repository import (
     InMemoryProcedureTemplateRepository,
 )
@@ -30,6 +34,7 @@ from infrastructure.persistence.in_memory.token_blacklist import InMemoryTokenBl
 from infrastructure.persistence.in_memory.user_repository import InMemoryUserRepository
 from infrastructure.persistence.in_memory.work_order_repository import InMemoryWorkOrderRepository
 from infrastructure.persistence.supabase.asset_repository import SupabaseAssetRepository
+from infrastructure.persistence.supabase.photo_repository import SupabasePhotoRepository
 from infrastructure.persistence.supabase.procedure_template_repository import (
     SupabaseProcedureTemplateRepository,
 )
@@ -40,6 +45,8 @@ from infrastructure.persistence.supabase.session_repository import SupabaseSessi
 from infrastructure.persistence.supabase.user_repository import SupabaseUserRepository
 from infrastructure.persistence.supabase.work_order_repository import SupabaseWorkOrderRepository
 from infrastructure.realtime.event_bus import InMemoryEventBus
+from infrastructure.storage.in_memory import InMemoryObjectStorage
+from infrastructure.storage.supabase import SupabaseObjectStorage
 
 _settings: Settings | None = None
 
@@ -153,6 +160,31 @@ def get_event_bus(settings: Settings | None = None) -> IEventBus:
     if cfg.EVENTBUS == "memory":
         return InMemoryEventBus.shared()
     raise ValueError(f"EVENTBUS={cfg.EVENTBUS} no soportado")
+
+
+def get_object_storage(settings: Settings | None = None) -> IObjectStorage:
+    cfg = settings or get_settings()
+    if cfg.STORAGE == "memory":
+        return InMemoryObjectStorage.shared(base_url=cfg.API_BASE_URL)
+    if cfg.STORAGE == "supabase":
+        return SupabaseObjectStorage()
+    raise ValueError(f"STORAGE={cfg.STORAGE} no soportado")
+
+
+def get_photo_repository(settings: Settings | None = None) -> IPhotoRepository:
+    cfg = settings or get_settings()
+    if cfg.PERSISTENCE == "memory":
+        return InMemoryPhotoRepository.shared()
+    if cfg.PERSISTENCE == "supabase":
+        return SupabasePhotoRepository()
+    raise ValueError(f"PERSISTENCE={cfg.PERSISTENCE} no soportado")
+
+
+def get_photo_validator(settings: Settings | None = None) -> IPhotoValidator:
+    cfg = settings or get_settings()
+    if cfg.PHOTO_VALIDATOR == "mock":
+        return MockPhotoValidator()
+    raise ValueError(f"PHOTO_VALIDATOR={cfg.PHOTO_VALIDATOR} no soportado")
 
 
 def get_append_event_use_case():
@@ -316,6 +348,52 @@ def get_start_session_use_case():
     )
 
 
+def get_validate_photo_use_case():
+    from application.use_cases.photos.validate import ValidatePhotoUseCase
+
+    cfg = get_settings()
+    return ValidatePhotoUseCase(
+        photos=get_photo_repository(cfg),
+        storage=get_object_storage(cfg),
+        validator=get_photo_validator(cfg),
+        events=get_session_event_repository(cfg),
+        bus=get_event_bus(cfg),
+        clock=get_clock(cfg),
+        append_events=get_append_event_use_case(),
+        max_retries=cfg.PHOTO_MAX_RETRIES,
+        signed_url_ttl=cfg.SIGNED_URL_TTL_SECONDS,
+    )
+
+
+def get_upload_photo_use_case():
+    from application.use_cases.photos.upload import UploadPhotoUseCase
+
+    cfg = get_settings()
+    max_bytes = cfg.PHOTO_MAX_SIZE_MB * 1024 * 1024
+    return UploadPhotoUseCase(
+        sessions=get_session_repository(cfg),
+        photos=get_photo_repository(cfg),
+        storage=get_object_storage(cfg),
+        events=get_session_event_repository(cfg),
+        bus=get_event_bus(cfg),
+        clock=get_clock(cfg),
+        max_size_bytes=max_bytes,
+        signed_url_ttl=cfg.SIGNED_URL_TTL_SECONDS,
+        validate_photo_use_case=get_validate_photo_use_case(),
+    )
+
+
+def get_get_photo_use_case():
+    from application.use_cases.photos.get import GetPhotoUseCase
+
+    cfg = get_settings()
+    return GetPhotoUseCase(
+        photos=get_photo_repository(cfg),
+        storage=get_object_storage(cfg),
+        signed_url_ttl=cfg.SIGNED_URL_TTL_SECONDS,
+    )
+
+
 async def reset_auth_state() -> None:
     """Resetea repos y blacklist in-memory entre tests."""
     InMemoryUserRepository.reset_singleton()
@@ -326,11 +404,16 @@ async def reset_auth_state() -> None:
     InMemoryAssetRepository.reset_singleton()
     InMemorySessionRepository.reset_singleton()
     InMemorySessionEventRepository.reset_singleton()
+    InMemoryPhotoRepository.reset_singleton()
+    InMemoryObjectStorage.reset_singleton()
     InMemoryEventBus.reset_singleton()
     from interface.ws.manager import ConnectionManager
 
     ConnectionManager.reset_singleton()
     await InMemorySessionRepository.shared().reset()
     await InMemorySessionEventRepository.shared().reset()
+    await InMemoryPhotoRepository.shared().reset()
+    cfg = get_settings()
+    await InMemoryObjectStorage.shared(base_url=cfg.API_BASE_URL).reset()
     await InMemoryEventBus.shared().reset()
     await ConnectionManager.shared().reset()
