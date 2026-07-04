@@ -42,6 +42,10 @@ class InMemorySessionRepository:
                 return None
             return session
 
+    async def get_by_id(self, session_id: str) -> MaintenanceSession | None:
+        async with self._lock:
+            return self._sessions.get(session_id)
+
     async def get_active_for_work_order(self, work_order_id: str) -> MaintenanceSession | None:
         async with self._lock:
             for session in self._sessions.values():

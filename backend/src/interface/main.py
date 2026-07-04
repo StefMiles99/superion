@@ -12,6 +12,7 @@ from interface.http.middleware.correlation import CorrelationMiddleware
 from interface.http.middleware.logging import LoggingMiddleware
 from interface.http.routers import (
     auth,
+    elevenlabs_tools,
     health,
     manuals,
     mock_storage,
@@ -19,6 +20,7 @@ from interface.http.routers import (
     sessions,
     work_orders,
 )
+from interface.http.routers.webhooks import elevenlabs as elevenlabs_webhook
 from interface.ws.handlers import router as ws_router
 
 
@@ -45,6 +47,8 @@ def create_app(settings: Settings | None = None) -> FastAPI:
     app.include_router(manuals.router)
     if cfg.STORAGE == "memory":
         app.include_router(mock_storage.router)
+    app.include_router(elevenlabs_webhook.router)
+    app.include_router(elevenlabs_tools.router)
     app.include_router(ws_router)
 
     return app

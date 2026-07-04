@@ -12,6 +12,7 @@ from domain.exceptions import (
     DomainError,
     ForbiddenError,
     NotFoundError,
+    ServiceUnavailableError,
     UnauthorizedError,
     ValidationError,
 )
@@ -51,6 +52,10 @@ _CONFLICT_CODES = frozenset({
 def _status_for_domain_error(exc: DomainError) -> int:
     if isinstance(exc, UnauthorizedError):
         return 401
+    if isinstance(exc, ServiceUnavailableError):
+        return 503
+    if exc.code == ErrorCode.LANGGRAPH_UNAVAILABLE.value:
+        return 503
     if isinstance(exc, ConflictError) or exc.code in _CONFLICT_CODES:
         return 409
     if isinstance(exc, NotFoundError) or exc.code in (

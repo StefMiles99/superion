@@ -52,3 +52,7 @@ class Settings(BaseSettings):
     RAG_ABSTAIN_THRESHOLD: float = 0.3
     MANUAL_MAX_SIZE_MB: int = 50
     MANUAL_INDEX_ESTIMATED_SECONDS: int = 90
+    INTENT_CLASSIFIER: Literal["mock", "llm"] = "mock"
+    LANGGRAPH: Literal["mock", "langgraph"] = "mock"
+    ELEVENLABS_WEBHOOK_SECRET: str = "change-me"
+    ELEVENLABS_SIGNATURE_WINDOW_SECONDS: int = 300
