@@ -10,7 +10,15 @@ from infrastructure.observability.logging import configure_logging
 from interface.http.exception_handlers import register_exception_handlers
 from interface.http.middleware.correlation import CorrelationMiddleware
 from interface.http.middleware.logging import LoggingMiddleware
-from interface.http.routers import auth, health, mock_storage, photos, sessions, work_orders
+from interface.http.routers import (
+    auth,
+    health,
+    manuals,
+    mock_storage,
+    photos,
+    sessions,
+    work_orders,
+)
 from interface.ws.handlers import router as ws_router
 
 
@@ -34,6 +42,7 @@ def create_app(settings: Settings | None = None) -> FastAPI:
     app.include_router(work_orders.router)
     app.include_router(sessions.router)
     app.include_router(photos.router)
+    app.include_router(manuals.router)
     if cfg.STORAGE == "memory":
         app.include_router(mock_storage.router)
     app.include_router(ws_router)

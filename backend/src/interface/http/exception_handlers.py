@@ -58,11 +58,13 @@ def _status_for_domain_error(exc: DomainError) -> int:
         ErrorCode.WORK_ORDER_NOT_FOUND.value,
         ErrorCode.SESSION_NOT_FOUND.value,
         ErrorCode.PHOTO_NOT_FOUND.value,
+        ErrorCode.MANUAL_NOT_FOUND.value,
     ):
         return 404
     if isinstance(exc, ValidationError) or exc.code in (
         ErrorCode.VALIDATION_ERROR.value,
         ErrorCode.PHOTO_VALIDATION_FAILED.value,
+        ErrorCode.MANUAL_INVALID_PDF.value,
     ):
         return 422
     if isinstance(exc, ForbiddenError) or exc.code == ErrorCode.FORBIDDEN.value:

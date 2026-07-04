@@ -5,6 +5,8 @@ from __future__ import annotations
 from domain.ports.event_bus import IEventBus
 from domain.ports.repositories import (
     IAssetRepository,
+    IManualChunkRepository,
+    IManualRepository,
     IPhotoRepository,
     IProcedureTemplateRepository,
     ISessionEventRepository,
@@ -13,7 +15,16 @@ from domain.ports.repositories import (
     IUserRepository,
     IWorkOrderRepository,
 )
-from domain.ports.services import IClock, IPasswordHasher, IPhotoValidator, ITokenService
+from domain.ports.services import (
+    IChunkerService,
+    IClock,
+    IEmbeddingService,
+    IPasswordHasher,
+    IPdfExtractor,
+    IPhotoValidator,
+    IRerankerService,
+    ITokenService,
+)
 from domain.ports.storage import IObjectStorage
 from domain.services.password_hasher import BcryptPasswordHasher
 from domain.services.photo_validator import MockPhotoValidator
@@ -22,6 +33,10 @@ from domain.services.token_service import JwtTokenService
 from infrastructure.config import Settings
 from infrastructure.persistence.in_memory.asset_repository import InMemoryAssetRepository
 from infrastructure.persistence.in_memory.clock import InMemoryClock
+from infrastructure.persistence.in_memory.manual_chunk_repository import (
+    InMemoryManualChunkRepository,
+)
+from infrastructure.persistence.in_memory.manual_repository import InMemoryManualRepository
 from infrastructure.persistence.in_memory.photo_repository import InMemoryPhotoRepository
 from infrastructure.persistence.in_memory.procedure_template_repository import (
     InMemoryProcedureTemplateRepository,
@@ -34,6 +49,10 @@ from infrastructure.persistence.in_memory.token_blacklist import InMemoryTokenBl
 from infrastructure.persistence.in_memory.user_repository import InMemoryUserRepository
 from infrastructure.persistence.in_memory.work_order_repository import InMemoryWorkOrderRepository
 from infrastructure.persistence.supabase.asset_repository import SupabaseAssetRepository
+from infrastructure.persistence.supabase.manual_chunk_repository import (
+    SupabaseManualChunkRepository,
+)
+from infrastructure.persistence.supabase.manual_repository import SupabaseManualRepository
 from infrastructure.persistence.supabase.photo_repository import SupabasePhotoRepository
 from infrastructure.persistence.supabase.procedure_template_repository import (
     SupabaseProcedureTemplateRepository,
@@ -45,6 +64,10 @@ from infrastructure.persistence.supabase.session_repository import SupabaseSessi
 from infrastructure.persistence.supabase.user_repository import SupabaseUserRepository
 from infrastructure.persistence.supabase.work_order_repository import SupabaseWorkOrderRepository
 from infrastructure.realtime.event_bus import InMemoryEventBus
+from infrastructure.services.chunker import HierarchicalChunker
+from infrastructure.services.embedding_service import MockEmbeddingService
+from infrastructure.services.pdf_extractor import MockPdfExtractor
+from infrastructure.services.reranker import MockReranker
 from infrastructure.storage.in_memory import InMemoryObjectStorage
 from infrastructure.storage.supabase import SupabaseObjectStorage
 
@@ -394,6 +417,145 @@ def get_get_photo_use_case():
     )
 
 
+def get_pdf_extractor(settings: Settings | None = None) -> IPdfExtractor:
+    return MockPdfExtractor()
+
+
+def get_chunker_service(settings: Settings | None = None) -> IChunkerService:
+    cfg = settings or get_settings()
+    return HierarchicalChunker(
+        chunk_size=cfg.CHUNK_SIZE,
+        overlap=cfg.CHUNK_OVERLAP,
+    )
+
+
+def get_embedding_service(settings: Settings | None = None) -> IEmbeddingService:
+    cfg = settings or get_settings()
+    if cfg.EMBEDDING == "mock":
+        return MockEmbeddingService(dimensions=cfg.EMBEDDING_DIM)
+    raise ValueError(f"EMBEDDING={cfg.EMBEDDING} no soportado")
+
+
+def get_reranker_service(settings: Settings | None = None) -> IRerankerService:
+    cfg = settings or get_settings()
+    if cfg.RERANKER == "mock":
+        return MockReranker()
+    raise ValueError(f"RERANKER={cfg.RERANKER} no soportado")
+
+
+def get_manual_repository(settings: Settings | None = None) -> IManualRepository:
+    cfg = settings or get_settings()
+    if cfg.PERSISTENCE == "memory":
+        return InMemoryManualRepository.shared()
+    if cfg.PERSISTENCE == "supabase":
+        return SupabaseManualRepository()
+    raise ValueError(f"PERSISTENCE={cfg.PERSISTENCE} no soportado")
+
+
+def get_manual_chunk_repository(settings: Settings | None = None) -> IManualChunkRepository:
+    cfg = settings or get_settings()
+    if cfg.PERSISTENCE == "memory":
+        return InMemoryManualChunkRepository.shared()
+    if cfg.PERSISTENCE == "supabase":
+        return SupabaseManualChunkRepository()
+    raise ValueError(f"PERSISTENCE={cfg.PERSISTENCE} no soportado")
+
+
+def get_index_manual_use_case():
+    from application.use_cases.manuals.index import IndexManualUseCase
+
+    cfg = get_settings()
+    return IndexManualUseCase(
+        manuals=get_manual_repository(cfg),
+        chunks=get_manual_chunk_repository(cfg),
+        storage=get_object_storage(cfg),
+        pdf_extractor=get_pdf_extractor(cfg),
+        chunker=get_chunker_service(cfg),
+        embeddings=get_embedding_service(cfg),
+    )
+
+
+def get_upload_manual_use_case():
+    from application.use_cases.manuals.upload import UploadManualUseCase
+
+    cfg = get_settings()
+    max_bytes = cfg.MANUAL_MAX_SIZE_MB * 1024 * 1024
+    return UploadManualUseCase(
+        manuals=get_manual_repository(cfg),
+        storage=get_object_storage(cfg),
+        clock=get_clock(cfg),
+        index_manual=get_index_manual_use_case(),
+        max_size_bytes=max_bytes,
+        estimated_seconds=cfg.MANUAL_INDEX_ESTIMATED_SECONDS,
+    )
+
+
+def get_list_manuals_use_case():
+    from application.use_cases.manuals.list import ListManualsUseCase
+
+    cfg = get_settings()
+    return ListManualsUseCase(
+        manuals=get_manual_repository(cfg),
+        users=get_user_repository(cfg),
+    )
+
+
+def get_get_manual_use_case():
+    from application.use_cases.manuals.get import GetManualUseCase
+
+    cfg = get_settings()
+    return GetManualUseCase(
+        manuals=get_manual_repository(cfg),
+        users=get_user_repository(cfg),
+        storage=get_object_storage(cfg),
+        signed_url_ttl=cfg.SIGNED_URL_TTL_SECONDS,
+    )
+
+
+def get_reindex_manual_use_case():
+    from application.use_cases.manuals.reindex import ReindexManualUseCase
+
+    cfg = get_settings()
+    return ReindexManualUseCase(
+        manuals=get_manual_repository(cfg),
+        index_manual=get_index_manual_use_case(),
+    )
+
+
+def get_archive_manual_use_case():
+    from application.use_cases.manuals.archive import ArchiveManualUseCase
+
+    return ArchiveManualUseCase(manuals=get_manual_repository())
+
+
+def get_search_manual_use_case():
+    from application.use_cases.manuals.search import SearchManualUseCase
+
+    cfg = get_settings()
+    return SearchManualUseCase(
+        manuals=get_manual_repository(cfg),
+        chunks=get_manual_chunk_repository(cfg),
+        embeddings=get_embedding_service(cfg),
+        top_k=cfg.RAG_TOP_K,
+    )
+
+
+def get_rag_query_use_case():
+    from application.use_cases.rag.query import RagQueryUseCase
+
+    cfg = get_settings()
+    return RagQueryUseCase(
+        manuals=get_manual_repository(cfg),
+        chunks=get_manual_chunk_repository(cfg),
+        assets=get_asset_repository(cfg),
+        embeddings=get_embedding_service(cfg),
+        reranker=get_reranker_service(cfg),
+        top_k=cfg.RAG_TOP_K,
+        top_n=cfg.RAG_TOP_N,
+        abstain_threshold=cfg.RAG_ABSTAIN_THRESHOLD,
+    )
+
+
 async def reset_auth_state() -> None:
     """Resetea repos y blacklist in-memory entre tests."""
     InMemoryUserRepository.reset_singleton()
@@ -405,6 +567,8 @@ async def reset_auth_state() -> None:
     InMemorySessionRepository.reset_singleton()
     InMemorySessionEventRepository.reset_singleton()
     InMemoryPhotoRepository.reset_singleton()
+    InMemoryManualRepository.reset_singleton()
+    InMemoryManualChunkRepository.reset_singleton()
     InMemoryObjectStorage.reset_singleton()
     InMemoryEventBus.reset_singleton()
     from interface.ws.manager import ConnectionManager
@@ -413,6 +577,8 @@ async def reset_auth_state() -> None:
     await InMemorySessionRepository.shared().reset()
     await InMemorySessionEventRepository.shared().reset()
     await InMemoryPhotoRepository.shared().reset()
+    await InMemoryManualRepository.shared().reset()
+    await InMemoryManualChunkRepository.shared().reset()
     cfg = get_settings()
     await InMemoryObjectStorage.shared(base_url=cfg.API_BASE_URL).reset()
     await InMemoryEventBus.shared().reset()

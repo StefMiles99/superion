@@ -42,3 +42,13 @@ class Settings(BaseSettings):
     WS_PONG_TIMEOUT: int = 60
     WS_REPLAY_ON_CONNECT: bool = True
     EVENTBUS: Literal["memory", "redis"] = "memory"
+    EMBEDDING: Literal["mock", "openrouter"] = "mock"
+    EMBEDDING_DIM: int = 384
+    RERANKER: Literal["mock", "openrouter"] = "mock"
+    CHUNK_SIZE: int = 512
+    CHUNK_OVERLAP: int = 64
+    RAG_TOP_K: int = 8
+    RAG_TOP_N: int = 3
+    RAG_ABSTAIN_THRESHOLD: float = 0.3
+    MANUAL_MAX_SIZE_MB: int = 50
+    MANUAL_INDEX_ESTIMATED_SECONDS: int = 90
