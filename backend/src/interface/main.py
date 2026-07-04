@@ -1,0 +1,39 @@
+"""Factory de aplicación FastAPI — BE-00."""
+
+from __future__ import annotations
+
+from fastapi import FastAPI
+
+from infrastructure.config import Settings
+from infrastructure.factories import set_settings
+from infrastructure.observability.logging import configure_logging
+from interface.http.exception_handlers import register_exception_handlers
+from interface.http.middleware.correlation import CorrelationMiddleware
+from interface.http.middleware.logging import LoggingMiddleware
+from interface.http.routers import auth, health, sessions, work_orders
+
+
+def create_app(settings: Settings | None = None) -> FastAPI:
+    """Crea instancia FastAPI con middleware, routers y handlers."""
+    cfg = settings or Settings()
+    set_settings(cfg)
+    configure_logging(cfg.LOG_LEVEL)
+
+    app = FastAPI(
+        title="SUPERION API",
+        version=cfg.APP_VERSION,
+    )
+
+    app.add_middleware(LoggingMiddleware)
+    app.add_middleware(CorrelationMiddleware)
+
+    register_exception_handlers(app)
+    app.include_router(health.router)
+    app.include_router(auth.router)
+    app.include_router(work_orders.router)
+    app.include_router(sessions.router)
+
+    return app
+
+
+app = create_app()
