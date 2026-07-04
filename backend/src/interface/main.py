@@ -2,10 +2,12 @@
 
 from __future__ import annotations
 
+from contextlib import asynccontextmanager
+
 from fastapi import FastAPI
 
 from infrastructure.config import Settings
-from infrastructure.factories import set_settings
+from infrastructure.factories import ensure_build_live_started, set_settings
 from infrastructure.observability.logging import configure_logging
 from interface.http.exception_handlers import register_exception_handlers
 from interface.http.middleware.correlation import CorrelationMiddleware
@@ -17,6 +19,7 @@ from interface.http.routers import (
     manuals,
     mock_storage,
     photos,
+    reports,
     sessions,
     work_orders,
 )
@@ -30,9 +33,15 @@ def create_app(settings: Settings | None = None) -> FastAPI:
     set_settings(cfg)
     configure_logging(cfg.LOG_LEVEL)
 
+    @asynccontextmanager
+    async def lifespan(_app: FastAPI):
+        await ensure_build_live_started()
+        yield
+
     app = FastAPI(
         title="SUPERION API",
         version=cfg.APP_VERSION,
+        lifespan=lifespan,
     )
 
     app.add_middleware(LoggingMiddleware)
@@ -43,6 +52,7 @@ def create_app(settings: Settings | None = None) -> FastAPI:
     app.include_router(auth.router)
     app.include_router(work_orders.router)
     app.include_router(sessions.router)
+    app.include_router(reports.router)
     app.include_router(photos.router)
     app.include_router(manuals.router)
     if cfg.STORAGE == "memory":

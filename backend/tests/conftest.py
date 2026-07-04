@@ -5,7 +5,7 @@ import asyncio
 import pytest
 
 from infrastructure.config import Settings
-from infrastructure.factories import reset_auth_state, reset_settings
+from infrastructure.factories import ensure_build_live_started, reset_auth_state, reset_settings
 from interface.main import create_app
 
 # Password de fixtures in-memory documentada para tests E2E e integración.
@@ -31,6 +31,7 @@ def _reset_factories() -> None:
     """Evita estado compartido entre tests."""
     reset_settings()
     asyncio.run(reset_auth_state())
+    asyncio.run(ensure_build_live_started())
     yield
     reset_settings()
     asyncio.run(reset_auth_state())

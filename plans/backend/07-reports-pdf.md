@@ -1,6 +1,6 @@
 # BE-07 — Reports + PDF + Finalize
 
-**Estado:** ⏳
+**Estado:** ✅
 **Depende de:** BE-03, BE-04, BE-06
 **Desbloquea:** BE-08
 **PRD features:** F3.5, F5.1, F5.2, F5.3, F5.4, F5.5
