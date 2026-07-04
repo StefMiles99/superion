@@ -18,5 +18,5 @@ export type {
   StepEnteredPayload,
   StepSkippedPayload,
 } from './types';
-export { WS_EVENT_PATTERNS } from './types';
+export { WS_EVENT_PATTERNS, WS_ADMIN_CHANNEL } from './types';
 export { DISCONNECTED_RETRY_CTA_MS, RealWsClient } from './ws';

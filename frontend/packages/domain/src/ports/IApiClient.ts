@@ -7,6 +7,7 @@ import type {
   SessionEventInput,
   SessionEventResponse,
   SessionStart,
+  SessionSummary,
 } from '../entities/session';
 import type { User } from '../entities/user';
 import type { WorkOrder, WorkOrderDetail, WorkOrderFilter } from '../entities/work_order';
@@ -22,7 +23,9 @@ export interface IApiClient {
   logout(): Promise<void>;
   me(): Promise<User>;
   listWorkOrders(filter?: WorkOrderFilter): Promise<Paginated<WorkOrder>>;
+  listActiveSessions(plantId: string): Promise<SessionSummary[]>;
   getWorkOrder(id: string): Promise<WorkOrderDetail>;
+  addSessionNote?(sessionId: string, note: string): Promise<void>;
   startSession(workOrderId: string): Promise<SessionStart>;
   getSession(id: string): Promise<Session>;
   postSessionEvent(

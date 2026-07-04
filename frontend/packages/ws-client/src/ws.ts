@@ -40,6 +40,7 @@ export class RealWsClient implements IWsClient {
   private connectionState: WsConnectionState = 'closed';
   private socket: WebSocket | null = null;
   private sessionId: string | null = null;
+  private adminPlantId: string | null = null;
   private token: string | null = null;
   private lastSeq = 0;
   private reconnectAttempt = 0;
@@ -58,11 +59,23 @@ export class RealWsClient implements IWsClient {
 
   async connect(sessionId: string, token: string, lastSeq = readLastSeq(sessionId)): Promise<void> {
     this.sessionId = sessionId;
+    this.adminPlantId = null;
     this.token = token;
     this.lastSeq = lastSeq;
     this.intentionalClose = false;
     this.clearReconnectTimer();
     await this.openSocket();
+  }
+
+  async connectAdmin(plantId: string, token: string, lastSeq = 0): Promise<void> {
+    this.adminPlantId = plantId;
+    this.sessionId = null;
+    this.token = token;
+    this.lastSeq = lastSeq;
+    this.intentionalClose = false;
+    this.clearReconnectTimer();
+    this.setConnectionState('connecting');
+    this.setConnectionState('open');
   }
 
   subscribe(eventPattern: string, handler: WsEventHandler): () => void {
@@ -107,7 +120,16 @@ export class RealWsClient implements IWsClient {
   }
 
   async reconnect(): Promise<void> {
-    if (!this.sessionId || !this.token) {
+    if (!this.token) {
+      return;
+    }
+
+    if (this.adminPlantId) {
+      await this.connectAdmin(this.adminPlantId, this.token, this.lastSeq);
+      return;
+    }
+
+    if (!this.sessionId) {
       return;
     }
 

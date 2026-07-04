@@ -9,6 +9,7 @@ import type {
   SessionEventInput,
   SessionEventResponse,
   SessionStart,
+  SessionSummary,
   WsEvent,
 } from '@superion/domain';
 import type { User } from '@superion/domain';
@@ -132,6 +133,99 @@ const FIXTURE_WORK_ORDERS: WorkOrder[] = [
     },
   },
 ];
+
+const PLANT_ID = '660e8400-e29b-41d4-a716-446655440001';
+
+function createDashboardSessionFixtures(now: () => number): SessionSummary[] {
+  const baseTime = now() - 45 * 60 * 1000;
+
+  return [
+    {
+      id: 'aa0e8400-e29b-41d4-a716-446655440001',
+      workOrderId: '770e8400-e29b-41d4-a716-446655440000',
+      workOrderCode: 'OT-1234',
+      assetTag: 'COMP-C3',
+      assetName: 'Compresor C-3',
+      technicianId: '550e8400-e29b-41d4-a716-446655440000',
+      technicianName: 'Juan Pérez',
+      status: 'active',
+      currentStepIndex: 2,
+      currentStepTitle: 'Aislar energía',
+      elapsedSeconds: 900,
+      lastEventType: 'step.entered',
+      lastEventAt: new Date(baseTime).toISOString(),
+      plantId: PLANT_ID,
+    },
+    {
+      id: 'aa0e8400-e29b-41d4-a716-446655440002',
+      workOrderId: '770e8400-e29b-41d4-a716-446655440001',
+      workOrderCode: 'OT-1235',
+      assetTag: 'PUMP-B2',
+      assetName: 'Bomba B-2',
+      technicianId: '550e8400-e29b-41d4-a716-446655440001',
+      technicianName: 'María García',
+      status: 'active',
+      currentStepIndex: 1,
+      currentStepTitle: 'Verificar presión',
+      elapsedSeconds: 720,
+      lastEventType: 'step.completed',
+      lastEventAt: new Date(baseTime + 5 * 60 * 1000).toISOString(),
+      plantId: PLANT_ID,
+    },
+    {
+      id: 'aa0e8400-e29b-41d4-a716-446655440003',
+      workOrderId: '770e8400-e29b-41d4-a716-446655440002',
+      workOrderCode: 'OT-1236',
+      assetTag: 'MOTOR-M1',
+      assetName: 'Motor M-1',
+      technicianId: '550e8400-e29b-41d4-a716-446655440002',
+      technicianName: 'Pedro López',
+      status: 'active',
+      currentStepIndex: 0,
+      currentStepTitle: 'Inspección visual',
+      elapsedSeconds: 300,
+      lastEventType: 'session.started',
+      lastEventAt: new Date(baseTime + 10 * 60 * 1000).toISOString(),
+      plantId: PLANT_ID,
+    },
+    {
+      id: 'aa0e8400-e29b-41d4-a716-446655440004',
+      workOrderId: '770e8400-e29b-41d4-a716-446655440003',
+      workOrderCode: 'OT-1237',
+      assetTag: 'VALV-V4',
+      assetName: 'Válvula V-4',
+      technicianId: '550e8400-e29b-41d4-a716-446655440000',
+      technicianName: 'Juan Pérez',
+      status: 'paused',
+      currentStepIndex: 4,
+      currentStepTitle: 'Ajustar torque',
+      elapsedSeconds: 1200,
+      lastEventType: 'session.paused',
+      lastEventAt: new Date(baseTime + 15 * 60 * 1000).toISOString(),
+      plantId: PLANT_ID,
+    },
+    {
+      id: 'aa0e8400-e29b-41d4-a716-446655440005',
+      workOrderId: '770e8400-e29b-41d4-a716-446655440004',
+      workOrderCode: 'OT-1238',
+      assetTag: 'FILT-F1',
+      assetName: 'Filtro F-1',
+      technicianId: '550e8400-e29b-41d4-a716-446655440001',
+      technicianName: 'María García',
+      status: 'finalized',
+      currentStepIndex: 8,
+      currentStepTitle: 'Cierre',
+      elapsedSeconds: 1800,
+      lastEventType: 'session.closed',
+      lastEventAt: new Date(now() - 20 * 60 * 1000).toISOString(),
+      plantId: PLANT_ID,
+    },
+  ];
+}
+
+function cloneDashboardSessions(sessions: SessionSummary[]): SessionSummary[] {
+  return sessions.map((item) => ({ ...item }));
+}
 
 interface StoredSession {
   session: Session;
@@ -283,6 +377,8 @@ export class InMemoryApiClient implements IApiClient {
   private photoCounter = 0;
   private photoEventEmitter: PhotoWsEventEmitter | null = null;
   private readonly maxPhotoRetries = 3;
+  private dashboardSessions: SessionSummary[] = createDashboardSessionFixtures(() => Date.now());
+  private sessionNotes = new Map<string, string[]>();
 
   setPhotoEventEmitter(emitter: PhotoWsEventEmitter | null): void {
     this.photoEventEmitter = emitter;
@@ -427,6 +523,38 @@ export class InMemoryApiClient implements IApiClient {
     );
 
     return paginateWorkOrders(filtered, filter);
+  }
+
+  async listActiveSessions(plantId: string): Promise<SessionSummary[]> {
+    if (!this.currentUser) {
+      throw new AuthError('No autenticado');
+    }
+
+    return cloneDashboardSessions(
+      this.dashboardSessions.filter((session) => session.plantId === plantId),
+    );
+  }
+
+  async addSessionNote(sessionId: string, note: string): Promise<void> {
+    if (!this.currentUser) {
+      throw new AuthError('No autenticado');
+    }
+
+    const trimmed = note.trim();
+    if (!trimmed) {
+      throw new ApiError('La nota no puede estar vacía', 400, 'VALIDATION_ERROR');
+    }
+
+    const exists =
+      this.dashboardSessions.some((item) => item.id === sessionId) ||
+      this.sessions.has(sessionId);
+    if (!exists) {
+      throw new ApiError('Sesión no encontrada', 404, 'SESSION_NOT_FOUND');
+    }
+
+    const notes = this.sessionNotes.get(sessionId) ?? [];
+    notes.push(trimmed);
+    this.sessionNotes.set(sessionId, notes);
   }
 
   async getWorkOrder(id: string): Promise<WorkOrderDetail> {
@@ -629,28 +757,40 @@ export class InMemoryApiClient implements IApiClient {
     }
 
     const stored = this.sessions.get(sessionId);
-    if (!stored) {
+    if (stored) {
+      if (stored.session.status !== 'active') {
+        throw new ApiError('Solo se puede pausar una sesión activa', 409, 'VALIDATION_ERROR');
+      }
+
+      stored.session = { ...stored.session, status: 'paused' };
+      this.sessions.set(sessionId, stored);
+      this.syncDashboardSessionStatus(sessionId, 'paused', 'session.paused');
+
+      const workOrderIndex = this.workOrders.findIndex(
+        (item) => item.id === stored.session.workOrderId,
+      );
+      if (workOrderIndex !== -1) {
+        const workOrder = this.workOrders[workOrderIndex]!;
+        this.workOrders[workOrderIndex] = {
+          ...workOrder,
+          status: 'paused',
+          asset: { ...workOrder.asset },
+        };
+      }
+      return;
+    }
+
+    const dashboardIndex = this.dashboardSessions.findIndex((item) => item.id === sessionId);
+    if (dashboardIndex === -1) {
       throw new ApiError('Sesión no encontrada', 404, 'SESSION_NOT_FOUND');
     }
 
-    if (stored.session.status !== 'active') {
+    const dashboardSession = this.dashboardSessions[dashboardIndex]!;
+    if (dashboardSession.status !== 'active') {
       throw new ApiError('Solo se puede pausar una sesión activa', 409, 'VALIDATION_ERROR');
     }
 
-    stored.session = { ...stored.session, status: 'paused' };
-    this.sessions.set(sessionId, stored);
-
-    const workOrderIndex = this.workOrders.findIndex(
-      (item) => item.id === stored.session.workOrderId,
-    );
-    if (workOrderIndex !== -1) {
-      const workOrder = this.workOrders[workOrderIndex]!;
-      this.workOrders[workOrderIndex] = {
-        ...workOrder,
-        status: 'paused',
-        asset: { ...workOrder.asset },
-      };
-    }
+    this.syncDashboardSessionStatus(sessionId, 'paused', 'session.paused');
   }
 
   async resumeSession(sessionId: string): Promise<void> {
@@ -659,28 +799,40 @@ export class InMemoryApiClient implements IApiClient {
     }
 
     const stored = this.sessions.get(sessionId);
-    if (!stored) {
+    if (stored) {
+      if (stored.session.status !== 'paused') {
+        throw new ApiError('Solo se puede reanudar una sesión pausada', 409, 'VALIDATION_ERROR');
+      }
+
+      stored.session = { ...stored.session, status: 'active' };
+      this.sessions.set(sessionId, stored);
+      this.syncDashboardSessionStatus(sessionId, 'active', 'session.resumed');
+
+      const workOrderIndex = this.workOrders.findIndex(
+        (item) => item.id === stored.session.workOrderId,
+      );
+      if (workOrderIndex !== -1) {
+        const workOrder = this.workOrders[workOrderIndex]!;
+        this.workOrders[workOrderIndex] = {
+          ...workOrder,
+          status: 'in_progress',
+          asset: { ...workOrder.asset },
+        };
+      }
+      return;
+    }
+
+    const dashboardIndex = this.dashboardSessions.findIndex((item) => item.id === sessionId);
+    if (dashboardIndex === -1) {
       throw new ApiError('Sesión no encontrada', 404, 'SESSION_NOT_FOUND');
     }
 
-    if (stored.session.status !== 'paused') {
+    const dashboardSession = this.dashboardSessions[dashboardIndex]!;
+    if (dashboardSession.status !== 'paused') {
       throw new ApiError('Solo se puede reanudar una sesión pausada', 409, 'VALIDATION_ERROR');
     }
 
-    stored.session = { ...stored.session, status: 'active' };
-    this.sessions.set(sessionId, stored);
-
-    const workOrderIndex = this.workOrders.findIndex(
-      (item) => item.id === stored.session.workOrderId,
-    );
-    if (workOrderIndex !== -1) {
-      const workOrder = this.workOrders[workOrderIndex]!;
-      this.workOrders[workOrderIndex] = {
-        ...workOrder,
-        status: 'in_progress',
-        asset: { ...workOrder.asset },
-      };
-    }
+    this.syncDashboardSessionStatus(sessionId, 'active', 'session.resumed');
   }
 
   async askAssistant(sessionId: string, question: string): Promise<AssistantAnswer> {
@@ -922,6 +1074,38 @@ export class InMemoryApiClient implements IApiClient {
     return { status: 'ok' };
   }
 
+  private syncDashboardSessionStatus(
+    sessionId: string,
+    status: SessionSummary['status'],
+    lastEventType: string,
+  ): void {
+    const index = this.dashboardSessions.findIndex((item) => item.id === sessionId);
+    if (index === -1) {
+      return;
+    }
+
+    const current = this.dashboardSessions[index]!;
+    this.dashboardSessions[index] = {
+      ...current,
+      status,
+      lastEventType,
+      lastEventAt: new Date(this.now()).toISOString(),
+    };
+
+    const emit = this.photoEventEmitter;
+    if (!emit) {
+      return;
+    }
+
+    emit({
+      type: lastEventType,
+      seq: Date.now(),
+      session_id: sessionId,
+      created_at: new Date(this.now()).toISOString(),
+      payload: { reason: 'user' },
+    });
+  }
+
   reset(): void {
     this.users = FIXTURE_USERS.map((user) => ({ ...user }));
     this.workOrders = FIXTURE_WORK_ORDERS.map((wo) => ({
@@ -939,5 +1123,7 @@ export class InMemoryApiClient implements IApiClient {
     this.reportCounter = 0;
     this.photoCounter = 0;
     this.photoEventEmitter = null;
+    this.dashboardSessions = createDashboardSessionFixtures(this.now);
+    this.sessionNotes.clear();
   }
 }
