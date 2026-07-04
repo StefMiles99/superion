@@ -1,0 +1,10 @@
+{
+  "foundation": {
+    "title": "SUPERION",
+    "mobileDescription": "Mobile app for maintenance technicians",
+    "desktopDescription": "Desktop app for supervisors and RAG administration"
+  },
+  "common": {
+    "loading": "Loading…"
+  }
+}
