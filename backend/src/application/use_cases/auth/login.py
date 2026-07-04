@@ -2,10 +2,12 @@
 
 from __future__ import annotations
 
+from application.decorators.audit import audit
 from application.dto.auth import LoginInput, LoginOutput, UserOutput
 from domain.exceptions import UnauthorizedError
 from domain.ports.repositories import ITokenBlacklist, IUserRepository
 from domain.ports.services import IPasswordHasher, ITokenService
+from domain.value_objects.action import AuditAction
 
 
 class LoginUseCase:
@@ -26,6 +28,7 @@ class LoginUseCase:
         self._blacklist = blacklist
         self._access_ttl_seconds = access_ttl_seconds
 
+    @audit(AuditAction.LOGIN, target_type="user")
     async def execute(self, input_data: LoginInput) -> LoginOutput:
         user = await self._users.get_by_email(str(input_data.email))
         if user is None or user.is_blocked:

@@ -90,7 +90,7 @@ async def archive_manual(
     _user: User = Depends(require_rag_admin),
     use_case: ArchiveManualUseCase = Depends(get_archive_manual_use_case),
 ) -> None:
-    await use_case.execute(manual_id=manual_id)
+    await use_case.execute(manual_id=manual_id, current_user=_user)
 
 
 @router.get("/v1/manuals/{manual_id}/search")

@@ -6,6 +6,7 @@ import hashlib
 from typing import TYPE_CHECKING
 from uuid import uuid4
 
+from application.decorators.audit import audit
 from application.dto.manual import UploadManualOutput
 from domain.entities.manual import Manual
 from domain.entities.user import User
@@ -13,6 +14,7 @@ from domain.exceptions import NotFoundError, ValidationError
 from domain.ports.repositories import IManualRepository
 from domain.ports.services import IClock
 from domain.ports.storage import IObjectStorage
+from domain.value_objects.action import AuditAction
 from domain.value_objects.manual_status import IndexStatus, ManualStatus
 
 if TYPE_CHECKING:
@@ -52,6 +54,7 @@ class UploadManualUseCase:
         self._max_size_bytes = max_size_bytes
         self._estimated_seconds = estimated_seconds
 
+    @audit(AuditAction.MANUAL_UPLOAD, target_type="manual")
     async def execute(
         self,
         *,

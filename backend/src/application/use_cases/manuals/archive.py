@@ -2,8 +2,11 @@
 
 from __future__ import annotations
 
+from application.decorators.audit import audit
+from domain.entities.user import User
 from domain.exceptions import NotFoundError
 from domain.ports.repositories import IManualRepository
+from domain.value_objects.action import AuditAction
 
 
 class ArchiveManualUseCase:
@@ -12,7 +15,8 @@ class ArchiveManualUseCase:
     def __init__(self, *, manuals: IManualRepository) -> None:
         self._manuals = manuals
 
-    async def execute(self, *, manual_id: str) -> None:
+    @audit(AuditAction.MANUAL_ARCHIVE, target_type="manual")
+    async def execute(self, *, manual_id: str, current_user: User | None = None) -> None:
         manual = await self._manuals.get_by_id(manual_id)
         if manual is None:
             raise NotFoundError(

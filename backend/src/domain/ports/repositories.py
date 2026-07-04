@@ -5,6 +5,7 @@ from __future__ import annotations
 from typing import Protocol
 
 from domain.entities.asset import Asset
+from domain.entities.audit_entry import AuditEntry
 from domain.entities.evidence_photo import EvidencePhoto
 from domain.entities.maintenance_session import MaintenanceSession
 from domain.entities.manual import Manual
@@ -161,3 +162,21 @@ class IManualChunkRepository(Protocol):
         query_embedding: tuple[float, ...],
         top_k: int,
     ) -> list[tuple[ManualChunk, float]]: ...
+
+
+class IAuditLogRepository(Protocol):
+    """Persistencia append-only del audit log."""
+
+    async def append(self, entry: AuditEntry) -> None: ...
+
+    async def get_by_id(self, entry_id: str) -> AuditEntry | None: ...
+
+    async def list_entries(
+        self,
+        *,
+        actor_user_id: str | None = None,
+        action: str | None = None,
+        target_type: str | None = None,
+        limit: int = 50,
+        cursor: str | None = None,
+    ) -> tuple[list[AuditEntry], str | None]: ...

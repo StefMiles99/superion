@@ -5,6 +5,7 @@ from __future__ import annotations
 from domain.ports.event_bus import IEventBus
 from domain.ports.repositories import (
     IAssetRepository,
+    IAuditLogRepository,
     IManualChunkRepository,
     IManualRepository,
     IPhotoRepository,
@@ -31,7 +32,9 @@ from domain.services.photo_validator import MockPhotoValidator
 from domain.services.system_clock import SystemClock
 from domain.services.token_service import JwtTokenService
 from infrastructure.config import Settings
+from infrastructure.observability.metrics import InMemoryMetricsCollector
 from infrastructure.persistence.in_memory.asset_repository import InMemoryAssetRepository
+from infrastructure.persistence.in_memory.audit_log_repository import InMemoryAuditLogRepository
 from infrastructure.persistence.in_memory.clock import InMemoryClock
 from infrastructure.persistence.in_memory.manual_chunk_repository import (
     InMemoryManualChunkRepository,
@@ -49,6 +52,7 @@ from infrastructure.persistence.in_memory.token_blacklist import InMemoryTokenBl
 from infrastructure.persistence.in_memory.user_repository import InMemoryUserRepository
 from infrastructure.persistence.in_memory.work_order_repository import InMemoryWorkOrderRepository
 from infrastructure.persistence.supabase.asset_repository import SupabaseAssetRepository
+from infrastructure.persistence.supabase.audit_log_repository import SupabaseAuditLogRepository
 from infrastructure.persistence.supabase.manual_chunk_repository import (
     SupabaseManualChunkRepository,
 )
@@ -64,6 +68,7 @@ from infrastructure.persistence.supabase.session_repository import SupabaseSessi
 from infrastructure.persistence.supabase.user_repository import SupabaseUserRepository
 from infrastructure.persistence.supabase.work_order_repository import SupabaseWorkOrderRepository
 from infrastructure.realtime.event_bus import InMemoryEventBus
+from infrastructure.security.rate_limiter import InMemoryRateLimiter, NoOpRateLimiter
 from infrastructure.services.chunker import HierarchicalChunker
 from infrastructure.services.embedding_service import MockEmbeddingService
 from infrastructure.services.pdf_extractor import MockPdfExtractor
@@ -72,6 +77,8 @@ from infrastructure.storage.in_memory import InMemoryObjectStorage
 from infrastructure.storage.supabase import SupabaseObjectStorage
 
 _settings: Settings | None = None
+_rate_limiter: InMemoryRateLimiter | NoOpRateLimiter | None = None
+_rate_limiter_key: tuple[bool, int, str] | None = None
 
 
 def get_settings() -> Settings:
@@ -84,14 +91,18 @@ def get_settings() -> Settings:
 
 def reset_settings() -> None:
     """Resetea singleton — útil en tests."""
-    global _settings
+    global _settings, _rate_limiter, _rate_limiter_key
     _settings = None
+    _rate_limiter = None
+    _rate_limiter_key = None
 
 
 def set_settings(settings: Settings) -> None:
     """Inyecta settings — usado por create_app en tests."""
-    global _settings
+    global _settings, _rate_limiter, _rate_limiter_key
     _settings = settings
+    _rate_limiter = None
+    _rate_limiter_key = None
 
 
 def get_clock(settings: Settings | None = None) -> IClock:
@@ -675,6 +686,62 @@ def get_handle_webhook_use_case():
     )
 
 
+def get_audit_log_repository(settings: Settings | None = None) -> IAuditLogRepository:
+    cfg = settings or get_settings()
+    if cfg.AUDIT_LOG == "memory":
+        return InMemoryAuditLogRepository.shared()
+    if cfg.AUDIT_LOG == "supabase":
+        return SupabaseAuditLogRepository()
+    raise ValueError(f"AUDIT_LOG={cfg.AUDIT_LOG} no soportado")
+
+
+def get_log_audit_entry_use_case():
+    from application.use_cases.audit.log import LogAuditEntryUseCase
+
+    cfg = get_settings()
+    return LogAuditEntryUseCase(
+        audit_log=get_audit_log_repository(cfg),
+        clock=get_clock(cfg),
+    )
+
+
+def get_list_audit_entries_use_case():
+    from application.use_cases.audit.list import ListAuditEntriesUseCase
+
+    return ListAuditEntriesUseCase(audit_log=get_audit_log_repository())
+
+
+def get_metrics_collector(settings: Settings | None = None) -> InMemoryMetricsCollector:
+    cfg = settings or get_settings()
+    if cfg.METRICS == "memory":
+        collector = InMemoryMetricsCollector.shared()
+        if not collector._counters and not collector._histograms and not collector._gauges:
+            collector.counter("http_up", "API process is up").inc(1)
+        return collector
+    if cfg.METRICS == "prometheus":
+        collector = InMemoryMetricsCollector.shared()
+        if not collector._counters and not collector._histograms and not collector._gauges:
+            collector.counter("http_up", "API process is up").inc(1)
+        return collector
+    raise ValueError(f"METRICS={cfg.METRICS} no soportado")
+
+
+def get_rate_limiter(settings: Settings | None = None) -> InMemoryRateLimiter | NoOpRateLimiter:
+    global _rate_limiter, _rate_limiter_key
+    cfg = settings or get_settings()
+    key = (cfg.RATE_LIMIT_ENABLED, cfg.RATE_LIMIT_PER_MIN, cfg.CLOCK_MODE)
+    if _rate_limiter is None or _rate_limiter_key != key:
+        if not cfg.RATE_LIMIT_ENABLED:
+            _rate_limiter = NoOpRateLimiter()
+        else:
+            _rate_limiter = InMemoryRateLimiter(
+                limit_per_minute=cfg.RATE_LIMIT_PER_MIN,
+                clock=get_clock(cfg),
+            )
+        _rate_limiter_key = key
+    return _rate_limiter
+
+
 async def reset_auth_state() -> None:
     """Resetea repos y blacklist in-memory entre tests."""
     InMemoryUserRepository.reset_singleton()
@@ -690,6 +757,11 @@ async def reset_auth_state() -> None:
     InMemoryManualChunkRepository.reset_singleton()
     InMemoryObjectStorage.reset_singleton()
     InMemoryEventBus.reset_singleton()
+    InMemoryAuditLogRepository.reset_singleton()
+    InMemoryMetricsCollector.reset_singleton()
+    global _rate_limiter, _rate_limiter_key
+    _rate_limiter = None
+    _rate_limiter_key = None
     from infrastructure.realtime.langgraph_client import MockLangGraphClient
 
     MockLangGraphClient.reset_singleton()
@@ -704,5 +776,9 @@ async def reset_auth_state() -> None:
     cfg = get_settings()
     await InMemoryObjectStorage.shared(base_url=cfg.API_BASE_URL).reset()
     await InMemoryEventBus.shared().reset()
+    await InMemoryAuditLogRepository.shared().reset()
+    await InMemoryMetricsCollector.shared().reset()
+    limiter = get_rate_limiter()
+    await limiter.reset()
     await MockLangGraphClient.shared().reset()
     await ConnectionManager.shared().reset()

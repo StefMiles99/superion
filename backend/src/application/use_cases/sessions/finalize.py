@@ -5,12 +5,14 @@ from __future__ import annotations
 from datetime import timedelta
 from uuid import uuid4
 
+from application.decorators.audit import audit
 from application.dto.event import FinalizeSessionOutput
 from application.use_cases.events.append import AppendEventUseCase
 from domain.entities.user import User
 from domain.exceptions import NotFoundError
 from domain.ports.repositories import ISessionRepository
 from domain.ports.services import IClock
+from domain.value_objects.action import AuditAction
 from domain.value_objects.event_type import EventType
 
 
@@ -28,6 +30,7 @@ class FinalizeSessionUseCase:
         self._append = append_events
         self._clock = clock
 
+    @audit(AuditAction.FINALIZE_SESSION, target_type="session")
     async def execute(
         self,
         *,

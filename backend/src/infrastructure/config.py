@@ -56,3 +56,17 @@ class Settings(BaseSettings):
     LANGGRAPH: Literal["mock", "langgraph"] = "mock"
     ELEVENLABS_WEBHOOK_SECRET: str = "change-me"
     ELEVENLABS_SIGNATURE_WINDOW_SECONDS: int = 300
+
+    # Observabilidad y hardening — BE-08
+    METRICS: Literal["memory", "prometheus"] = "memory"
+    RATE_LIMIT_PER_MIN: int = 60
+    RATE_LIMIT_ENABLED: bool = True
+    AUDIT_LOG: Literal["memory", "supabase"] = "memory"
+    SECURITY_HEADERS: bool = True
+
+    # Dependencias externas (ready check cuando mode != memory/mock)
+    SUPABASE_URL: str = ""
+    SUPABASE_SERVICE_ROLE_KEY: str = ""
+    OPENROUTER_API_KEY: str = ""
+    ELEVENLABS_API_KEY: str = ""
+    LANGGRAPH_URL: str = ""
