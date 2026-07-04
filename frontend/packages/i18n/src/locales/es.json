@@ -15,7 +15,40 @@
   },
   "workOrders": {
     "title": "Órdenes de trabajo",
-    "placeholder": "Lista de órdenes de trabajo (próximamente)"
+    "placeholder": "Lista de órdenes de trabajo (próximamente)",
+    "errorLoading": "No se pudieron cargar las órdenes de trabajo.",
+    "retry": "Reintentar",
+    "pullToRefresh": "Suelta para actualizar",
+    "refreshing": "Actualizando…",
+    "empty": {
+      "title": "Sin resultados",
+      "description": "No tienes OTs pendientes con los filtros actuales.",
+      "action": "Limpiar filtros"
+    },
+    "filters": {
+      "all": "Todas",
+      "pending": "Pendientes",
+      "inProgress": "En curso",
+      "completed": "Completadas",
+      "searchPlaceholder": "Buscar por código o tag",
+      "statusLabel": "Filtrar por estado",
+      "priorityLabel": "Filtrar por prioridad"
+    },
+    "status": {
+      "pending": "Pendiente",
+      "in_progress": "En curso",
+      "paused": "Pausada",
+      "completed": "Completada",
+      "cancelled": "Cancelada"
+    },
+    "priority": {
+      "low": "Baja",
+      "med": "Media",
+      "high": "Alta"
+    },
+    "card": {
+      "estimatedMinutes": "{{minutes}} min estimados"
+    }
   },
   "dashboard": {
     "title": "Panel de supervisión",

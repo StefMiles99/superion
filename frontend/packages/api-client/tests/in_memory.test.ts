@@ -12,7 +12,7 @@ describe('InMemoryApiClient', () => {
     const client = new InMemoryApiClient();
     const result = await client.listWorkOrders();
 
-    expect(result.items).toHaveLength(1);
+    expect(result.items).toHaveLength(5);
     expect(result.items[0]?.code).toBe('OT-1234');
     expect(result.nextCursor).toBeNull();
   });
