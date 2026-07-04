@@ -23,8 +23,6 @@ if (import.meta.env.DEV || import.meta.env.MODE === 'test') {
   window.__superion = { api, ws };
 }
 
-void ws.connect();
-
 createRoot(document.getElementById('root')!).render(
   <StrictMode>
     <I18nextProvider i18n={i18n}>

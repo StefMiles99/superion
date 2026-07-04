@@ -82,6 +82,15 @@
       "nextStep": "Siguiente paso",
       "pause": "Pausar",
       "resume": "Reanudar"
+    },
+    "voice": {
+      "listening": "Escuchando…",
+      "speaking": "Hablando…"
+    },
+    "connection": {
+      "reconnecting": "Reconectando…",
+      "disconnected": "Conexión perdida",
+      "retry": "Reintentar"
     }
   },
   "dashboard": {
