@@ -17,6 +17,7 @@
     "@superion/config": "workspace:*",
     "@superion/domain": "workspace:*",
     "@superion/i18n": "workspace:*",
+    "@superion/telemetry": "workspace:*",
     "@superion/ui": "workspace:*",
     "@superion/ws-client": "workspace:*",
     "@tanstack/react-query": "^5.80.6",

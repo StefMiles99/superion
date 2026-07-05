@@ -7,7 +7,8 @@ import {
   getCurrentStep,
   getTotalSteps,
 } from '@superion/domain';
-import { AppShell, Button, Skeleton } from '@superion/ui';
+import { AppShell, Button, ErrorBoundary, Skeleton } from '@superion/ui';
+import { Sentry } from '@superion/telemetry';
 
 import { AskAssistantModal } from '../components/AskAssistantModal';
 import { AssistantHistoryPanel } from '../components/AssistantHistoryPanel';
@@ -155,6 +156,16 @@ export default function SessionPage() {
       ) : null}
 
       {session && procedure && currentStep ? (
+        <ErrorBoundary
+          labels={{
+            title: t('errors.sessionBoundaryTitle'),
+            message: t('errors.sessionBoundaryMessage'),
+            reload: t('errors.boundaryReload'),
+          }}
+          onError={(error) => {
+            Sentry.captureException(error);
+          }}
+        >
         <div className="flex min-h-[calc(100vh-4rem)] flex-col">
           <ConnectionBanner
             connectionState={connectionState}
@@ -238,6 +249,7 @@ export default function SessionPage() {
             disabled={isPaused}
           />
         </div>
+        </ErrorBoundary>
       ) : null}
     </AppShell>
   );

@@ -12,6 +12,11 @@ const EnvSchema = z.object({
     .enum(['true', 'false'])
     .default('true')
     .transform((v) => v === 'true'),
+  VITE_PWA_ENABLED: z
+    .enum(['true', 'false'])
+    .default('true')
+    .transform((v) => v === 'true'),
+  VITE_WEB_VITALS_ENDPOINT: z.string().default(''),
   VITE_PHOTO_MAX_SIZE_MB: z.coerce.number().positive().default(10),
   VITE_PHOTO_MAX_RETRIES: z.coerce.number().int().positive().default(3),
 });
@@ -32,6 +37,8 @@ export function getEnv(): Env {
     VITE_DEFAULT_THEME: import.meta.env.VITE_DEFAULT_THEME,
     VITE_SENTRY_DSN: import.meta.env.VITE_SENTRY_DSN,
     VITE_TELEMETRY_ENABLED: import.meta.env.VITE_TELEMETRY_ENABLED,
+    VITE_PWA_ENABLED: import.meta.env.VITE_PWA_ENABLED,
+    VITE_WEB_VITALS_ENDPOINT: import.meta.env.VITE_WEB_VITALS_ENDPOINT,
     VITE_PHOTO_MAX_SIZE_MB: import.meta.env.VITE_PHOTO_MAX_SIZE_MB,
     VITE_PHOTO_MAX_RETRIES: import.meta.env.VITE_PHOTO_MAX_RETRIES,
   });

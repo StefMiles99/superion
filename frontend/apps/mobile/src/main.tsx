@@ -6,13 +6,22 @@ import { getApiClient, InMemoryApiClient } from '@superion/api-client';
 import { syncApiTokensFromSession } from '@superion/auth';
 import { getEnv } from '@superion/config';
 import { initI18n } from '@superion/i18n';
+import { initTelemetry } from '@superion/telemetry';
 import { getWsClient } from '@superion/ws-client';
 
 import { App } from './App';
 import './index.css';
+import { registerServiceWorker } from './service-worker';
 
 const env = getEnv();
 const i18n = initI18n(env.VITE_DEFAULT_LOCALE);
+
+initTelemetry({
+  sentryDsn: env.VITE_SENTRY_DSN,
+  enabled: env.VITE_TELEMETRY_ENABLED,
+  apiBaseUrl: env.VITE_API_BASE_URL,
+  webVitalsEndpoint: env.VITE_WEB_VITALS_ENDPOINT,
+});
 
 const api = getApiClient();
 const ws = getWsClient();
@@ -30,9 +39,7 @@ if (import.meta.env.DEV || import.meta.env.MODE === 'test') {
   window.__mockWs = ws;
 }
 
-if ('serviceWorker' in navigator && import.meta.env.PROD) {
-  void navigator.serviceWorker.register('/service-worker.js');
-}
+void registerServiceWorker(env.VITE_PWA_ENABLED);
 
 window.addEventListener('online', () => {
   if ('serviceWorker' in navigator && navigator.serviceWorker.controller) {

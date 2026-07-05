@@ -1,6 +1,6 @@
 # FE-13 — Polish (a11y, PWA, i18n, error boundaries, telemetría)
 
-**Estado:** ⏳
+**Estado:** ✅
 **Depende de:** FE-01..12
 **Desbloquea:** —
 **PRD features:** M10.1, M10.2, M10.3, S6, S7, S8
