@@ -8,7 +8,7 @@ from fastapi import FastAPI
 
 from application.dto.error_envelope import COMMON_ERROR_RESPONSES
 from infrastructure.config import Settings
-from infrastructure.factories import set_settings
+from infrastructure.factories import ensure_build_live_started, set_settings
 from infrastructure.observability.logging import configure_logging
 from interface.http.exception_handlers import register_exception_handlers
 from interface.http.middleware.correlation import CorrelationMiddleware
@@ -25,6 +25,7 @@ from interface.http.routers import (
     mock_storage,
     openapi,
     photos,
+    reports,
     sessions,
     work_orders,
 )
@@ -40,6 +41,7 @@ def create_app(settings: Settings | None = None) -> FastAPI:
 
     @asynccontextmanager
     async def lifespan(_app: FastAPI):
+        await ensure_build_live_started()
         yield
 
     app = FastAPI(
@@ -63,6 +65,7 @@ def create_app(settings: Settings | None = None) -> FastAPI:
     app.include_router(auth.router)
     app.include_router(work_orders.router)
     app.include_router(sessions.router)
+    app.include_router(reports.router)
     app.include_router(photos.router)
     app.include_router(manuals.router)
     if cfg.STORAGE == "memory":

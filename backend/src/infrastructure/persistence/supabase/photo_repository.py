@@ -39,3 +39,8 @@ class SupabasePhotoRepository:
             "SupabasePhotoRepository.count_rejected_for_step — "
             "implementar al activar PERSISTENCE=supabase"
         )
+
+    async def list_by_session(self, session_id: str) -> list[EvidencePhoto]:
+        raise NotImplementedError(
+            "SupabasePhotoRepository.list_by_session — implementar al activar PERSISTENCE=supabase"
+        )

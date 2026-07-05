@@ -12,6 +12,8 @@ const EnvSchema = z.object({
     .enum(['true', 'false'])
     .default('true')
     .transform((v) => v === 'true'),
+  VITE_PHOTO_MAX_SIZE_MB: z.coerce.number().positive().default(10),
+  VITE_PHOTO_MAX_RETRIES: z.coerce.number().int().positive().default(3),
 });
 
 export type Env = z.infer<typeof EnvSchema>;
@@ -30,5 +32,7 @@ export function getEnv(): Env {
     VITE_DEFAULT_THEME: import.meta.env.VITE_DEFAULT_THEME,
     VITE_SENTRY_DSN: import.meta.env.VITE_SENTRY_DSN,
     VITE_TELEMETRY_ENABLED: import.meta.env.VITE_TELEMETRY_ENABLED,
+    VITE_PHOTO_MAX_SIZE_MB: import.meta.env.VITE_PHOTO_MAX_SIZE_MB,
+    VITE_PHOTO_MAX_RETRIES: import.meta.env.VITE_PHOTO_MAX_RETRIES,
   });
 }

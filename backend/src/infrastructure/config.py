@@ -27,6 +27,7 @@ class Settings(BaseSettings):
     VECTOR_STORE: Literal["memory", "pgvector"] = "memory"
     STORAGE: Literal["memory", "supabase"] = "memory"
     PDF: Literal["mock", "weasyprint"] = "mock"
+    REPORT_BUILDER: Literal["memory", "langgraph"] = "memory"
     AUTH: Literal["memory", "supabase_auth"] = "memory"
     API_BASE_URL: str = "http://localhost:8000"
     PHOTO_VALIDATOR: Literal["mock", "openrouter_vlm"] = "mock"

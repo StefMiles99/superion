@@ -6,9 +6,9 @@ import type {
 import { AuthError } from '@superion/domain';
 import type { IApiClient, Paginated } from '@superion/domain';
 import type { Role, User } from '@superion/domain';
-import type { WorkOrder } from '@superion/domain';
+import type { WorkOrder, WorkOrderFilter } from '@superion/domain';
 
-import { ApiError } from './errors';
+import { ApiError, NotImplementedError } from './errors';
 
 interface AuthApiUser {
   id: string;
@@ -41,8 +41,36 @@ interface WorkOrdersApiResponse {
     priority: WorkOrder['priority'];
     procedure_name: string;
     estimated_minutes: number;
+    asset: {
+      id: string;
+      tag: string;
+      name: string;
+    };
   }>;
   next_cursor: string | null;
+}
+
+function buildWorkOrdersQuery(filter: WorkOrderFilter = {}): string {
+  const params = new URLSearchParams();
+
+  if (filter.status) {
+    params.set('status', filter.status);
+  }
+  if (filter.priority) {
+    params.set('priority', filter.priority);
+  }
+  if (filter.q) {
+    params.set('q', filter.q);
+  }
+  if (filter.cursor) {
+    params.set('cursor', filter.cursor);
+  }
+  if (filter.limit !== undefined) {
+    params.set('limit', String(filter.limit));
+  }
+
+  const query = params.toString();
+  return query ? `?${query}` : '';
 }
 
 function mapUser(apiUser: AuthApiUser | MeApiResponse): User {
@@ -174,8 +202,10 @@ export class HttpApiClient implements IApiClient {
     return mapUser(data);
   }
 
-  async listWorkOrders(): Promise<Paginated<WorkOrder>> {
-    const data = await this.request<WorkOrdersApiResponse>('/v1/work-orders');
+  async listWorkOrders(filter: WorkOrderFilter = {}): Promise<Paginated<WorkOrder>> {
+    const data = await this.request<WorkOrdersApiResponse>(
+      `/v1/work-orders${buildWorkOrdersQuery(filter)}`,
+    );
 
     return {
       items: data.items.map((item) => ({
@@ -185,9 +215,77 @@ export class HttpApiClient implements IApiClient {
         priority: item.priority,
         procedureName: item.procedure_name,
         estimatedMinutes: item.estimated_minutes,
+        asset: {
+          id: item.asset.id,
+          tag: item.asset.tag,
+          name: item.asset.name,
+        },
       })),
       nextCursor: data.next_cursor,
     };
+  }
+
+  async listActiveSessions(_plantId: string): Promise<import('@superion/domain').SessionSummary[]> {
+    throw new NotImplementedError('HttpApiClient.listActiveSessions — implementar en FE-09+');
+  }
+
+  async getWorkOrder(_id: string): Promise<import('@superion/domain').WorkOrderDetail> {
+    throw new NotImplementedError('HttpApiClient.getWorkOrder — implementar en FE-03+');
+  }
+
+  async addSessionNote(_sessionId: string, _note: string): Promise<void> {
+    throw new NotImplementedError('HttpApiClient.addSessionNote — implementar en FE-09+');
+  }
+
+  async startSession(_workOrderId: string): Promise<import('@superion/domain').SessionStart> {
+    throw new NotImplementedError('HttpApiClient.startSession — implementar en FE-03+');
+  }
+
+  async getSession(_id: string): Promise<import('@superion/domain').Session> {
+    throw new NotImplementedError('HttpApiClient.getSession — implementar en FE-03+');
+  }
+
+  async postSessionEvent(
+    _sessionId: string,
+    _event: import('@superion/domain').SessionEventInput,
+  ): Promise<import('@superion/domain').SessionEventResponse> {
+    throw new NotImplementedError('HttpApiClient.postSessionEvent — implementar en FE-03+');
+  }
+
+  async pauseSession(_sessionId: string): Promise<void> {
+    throw new NotImplementedError('HttpApiClient.pauseSession — implementar en FE-03+');
+  }
+
+  async resumeSession(_sessionId: string): Promise<void> {
+    throw new NotImplementedError('HttpApiClient.resumeSession — implementar en FE-03+');
+  }
+
+  async askAssistant(_sessionId: string, _question: string): Promise<import('@superion/domain').AssistantAnswer> {
+    throw new NotImplementedError('HttpApiClient.askAssistant — implementar en FE-06+');
+  }
+
+  async uploadPhoto(
+    _sessionId: string,
+    _file: Blob,
+    _stepIndex: number,
+    _criteria?: string,
+    _eventId?: string,
+  ): Promise<import('@superion/domain').PhotoUploadResponse> {
+    throw new NotImplementedError('HttpApiClient.uploadPhoto — implementar en FE-07+');
+  }
+
+  async getReport(_sessionId: string): Promise<import('@superion/domain').MaintenanceReport> {
+    throw new NotImplementedError('HttpApiClient.getReport — implementar en FE-08+');
+  }
+
+  async getReportPdf(_sessionId: string): Promise<Blob> {
+    throw new NotImplementedError('HttpApiClient.getReportPdf — implementar en FE-08+');
+  }
+
+  async finalizeSession(
+    _sessionId: string,
+  ): Promise<import('@superion/domain').FinalizeSessionResponse> {
+    throw new NotImplementedError('HttpApiClient.finalizeSession — implementar en FE-08+');
   }
 
   async healthCheck(): Promise<{ status: string }> {

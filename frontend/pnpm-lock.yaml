@@ -141,6 +141,9 @@ importers:
       react-router:
         specifier: ^7.6.1
         version: 7.18.1(react-dom@19.2.7(react@19.2.7))(react@19.2.7)
+      zustand:
+        specifier: ^5.0.5
+        version: 5.0.14(@types/react@19.2.17)(react@19.2.7)
     devDependencies:
       '@testing-library/jest-dom':
         specifier: ^6.6.3
@@ -163,6 +166,9 @@ importers:
       autoprefixer:
         specifier: ^10.4.21
         version: 10.5.2(postcss@8.5.16)
+      fake-indexeddb:
+        specifier: ^6.0.0
+        version: 6.2.5
       jsdom:
         specifier: ^26.1.0
         version: 26.1.0
@@ -1099,6 +1105,10 @@ packages:
   expect-type@1.4.0:
     resolution: {integrity: sha512-KfYbmpRm0VbLjEvVa9yGwCi9GI34xvi7A/HXYWQO65CSD2u3MczUJSuwXKFIxlGsgBQizV9q5J9NHj4VG0n+pA==}
     engines: {node: '>=12.0.0'}
+
+  fake-indexeddb@6.2.5:
+    resolution: {integrity: sha512-CGnyrvbhPlWYMngksqrSSUT1BAVP49dZocrHuK0SvtR0D5TMs5wP0o3j7jexDJW01KSadjBp1M/71o/KR3nD1w==}
+    engines: {node: '>=18'}
 
   fast-glob@3.3.3:
     resolution: {integrity: sha512-7MptL8U0cqcFdzIzwOTHoilX9x5BrNqye7Z/LuC7kCMRio1EMSyqRK3BEAUD7sXRq4iT4AzTVuZdhgQ2TCvYLg==}
@@ -2409,6 +2419,8 @@ snapshots:
       '@types/estree': 1.0.9
 
   expect-type@1.4.0: {}
+
+  fake-indexeddb@6.2.5: {}
 
   fast-glob@3.3.3:
     dependencies:
