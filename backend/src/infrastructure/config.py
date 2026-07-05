@@ -70,3 +70,12 @@ class Settings(BaseSettings):
     OPENROUTER_API_KEY: str = ""
     ELEVENLABS_API_KEY: str = ""
     LANGGRAPH_URL: str = ""
+
+    # ElevenLabs provision — BE-09
+    ELEVENLABS_PROVISIONER: Literal["memory", "api"] = "memory"
+    ELEVENLABS_AGENT_MANIFEST: str = "elevenlabs/agent.yaml"
+    ELEVENLABS_STATE_FILE: str = "elevenlabs/state.json"
+    ELEVENLABS_AGENT_ID: str = ""
+    ELEVENLABS_VOICE_ID: str = "JBFqnCBsd6RMkjVDRZzb"
+    ELEVENLABS_CONNECT_MODE: Literal["signed_url", "webrtc"] = "signed_url"
+    DEPLOY_ENV: str = "dev"

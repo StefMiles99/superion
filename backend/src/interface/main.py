@@ -26,6 +26,7 @@ from interface.http.routers import (
     openapi,
     photos,
     sessions,
+    voice,
     work_orders,
 )
 from interface.http.routers.webhooks import elevenlabs as elevenlabs_webhook
@@ -63,6 +64,7 @@ def create_app(settings: Settings | None = None) -> FastAPI:
     app.include_router(auth.router)
     app.include_router(work_orders.router)
     app.include_router(sessions.router)
+    app.include_router(voice.router)
     app.include_router(photos.router)
     app.include_router(manuals.router)
     if cfg.STORAGE == "memory":
