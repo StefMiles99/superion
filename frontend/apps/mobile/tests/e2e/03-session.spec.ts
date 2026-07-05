@@ -24,6 +24,7 @@ test.describe('mobile session flow', () => {
 
     await expect(page.getByText('Paso 4 de 12')).toBeVisible();
     await page.getByRole('button', { name: 'Siguiente paso' }).click();
-    await expect(page.getByText(/requiere foto/i)).toBeVisible();
+    await page.waitForURL('**/sessions/**/camera');
+    await expect(page.getByText(/sensor visible/i)).toBeVisible();
   });
 });

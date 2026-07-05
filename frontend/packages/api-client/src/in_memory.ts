@@ -1181,39 +1181,6 @@ export class InMemoryApiClient implements IApiClient {
           },
         });
 
-        if (firstChar === 'A') {
-          stored.acceptedPhotoSteps.add(stepIndex);
-          stored.photoGallery.push({
-            path: `mock://photo/${photoId}`,
-            caption: criteria ?? 'Evidencia aceptada',
-            thumbnailUrl: `mock://thumb/${photoId}`,
-          });
-          stored.reportVersion += 1;
-          stored.session = {
-            ...stored.session,
-            metrics: {
-              ...stored.session.metrics,
-              photosCount: stored.session.metrics.photosCount + 1,
-            },
-          };
-          this.sessions.set(sessionId, stored);
-          this.emitReportUpdated(stored, stepIndex);
-
-          emit({
-            type: 'photo.validated',
-            seq: capturedSeq + 1,
-            session_id: sessionId,
-            created_at: new Date(this.now()).toISOString(),
-            payload: {
-              photo_id: photoId,
-              step_index: stepIndex,
-              feedback: 'ok',
-              caption: criteria ?? 'Evidencia aceptada',
-            },
-          });
-          return;
-        }
-
         if (firstChar === 'R') {
           const retries = (stored.photoRetries.get(stepIndex) ?? 0) + 1;
           stored.photoRetries.set(stepIndex, retries);
@@ -1232,7 +1199,38 @@ export class InMemoryApiClient implements IApiClient {
               max_retries: this.maxPhotoRetries,
             },
           });
+          return;
         }
+
+        stored.acceptedPhotoSteps.add(stepIndex);
+        stored.photoGallery.push({
+          path: `mock://photo/${photoId}`,
+          caption: criteria ?? 'Evidencia aceptada',
+          thumbnailUrl: `mock://thumb/${photoId}`,
+        });
+        stored.reportVersion += 1;
+        stored.session = {
+          ...stored.session,
+          metrics: {
+            ...stored.session.metrics,
+            photosCount: stored.session.metrics.photosCount + 1,
+          },
+        };
+        this.sessions.set(sessionId, stored);
+        this.emitReportUpdated(stored, stepIndex);
+
+        emit({
+          type: 'photo.validated',
+          seq: capturedSeq + 1,
+          session_id: sessionId,
+          created_at: new Date(this.now()).toISOString(),
+          payload: {
+            photo_id: photoId,
+            step_index: stepIndex,
+            feedback: 'ok',
+            caption: criteria ?? 'Evidencia aceptada',
+          },
+        });
       }, 100);
     }
 

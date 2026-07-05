@@ -1,0 +1,4 @@
+- Reparar el frontend iterando (respetar contrato)
+- Generar agente de ElevenLabs con Python
+- Hacer E2E completo
+- Agregar features adicionales que se puedan. 

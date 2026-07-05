@@ -32,6 +32,6 @@ test.describe('desktop procedure templates', () => {
     await page.getByTestId('step-row-2').locator('[name=title]').fill('Cerrar V-12');
 
     await page.getByRole('button', { name: 'Guardar' }).click();
-    await expect(page.getByText('MP-Compresor-C3')).toBeVisible();
+    await expect(page.getByRole('link', { name: 'MP-Compresor-C3', exact: true })).toBeVisible();
   });
 });
