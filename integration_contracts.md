@@ -318,6 +318,33 @@ Cierra la sesión, genera reporte y PDF.
 }
 ```
 
+#### `POST /v1/sessions/{id}/voice/connect`
+Emite credenciales para iniciar conversación de voz con el agente ElevenLabs (backend proxy; el cliente **nunca** recibe `ELEVENLABS_API_KEY`).
+
+Request: `{}` (vacío; `session_id` en path)
+
+Response 200:
+```jsonc
+{
+  "agent_id": "agent_…",
+  "connect_mode": "signed_url",
+  "signed_url": "wss://…",
+  "expires_at": "2026-07-04T20:45:00Z",
+  "dynamic_variables": {
+    "session_id": "uuid",
+    "work_order_code": "OT-1234",
+    "asset_tag": "COMP-01"
+  }
+}
+```
+
+Errores:
+- `404 SESSION_NOT_FOUND`
+- `403 FORBIDDEN` (sesión de otro técnico)
+- `409 SESSION_NOT_ACTIVE` (sesión finalizada o abortada)
+- `422 AGENT_NOT_PROVISIONED` (sin `ELEVENLABS_AGENT_ID` ni `state.json`)
+- `503 ELEVENLABS_UNAVAILABLE`
+
 ### 2.4 Photos
 
 #### `POST /v1/sessions/{id}/photos`
@@ -842,6 +869,39 @@ Backend firma/verifica con header `X-ElevenLabs-Signature` (HMAC SHA256).
 - Audio crudo NO se persiste por defecto; solo transcripciones.
 - Si `AUDIO_RETENTION_DAYS > 0`, audio se guarda en Storage cifrado y se purga con cron.
 
+### 5.6 Provisionamiento del agente (Python, sin UI)
+
+El agente conversacional se inicializa y despliega **solo vía Python** (CLI `python -m interface.cli.elevenlabs`), nunca por la UI web ni `@elevenlabs/cli` npm.
+
+**Configuración declarativa** (repo): `elevenlabs/agent.yaml`, `elevenlabs/prompts/agent-system.md`, `elevenlabs/tools/agent-tools.json`.
+
+**Flujo idempotente:**
+1. `provision` — sincroniza webhook tools → create/update agente en ElevenLabs API
+2. `deploy` — `agents.deployments.create` al porcentaje configurado
+3. Estado local en `elevenlabs/state.json` (gitignored): `{agent_id, branch_id, tool_ids, status}`
+
+**Variables de entorno (backend):**
+- `ELEVENLABS_PROVISIONER=memory|api` (default `memory`)
+- `ELEVENLABS_AGENT_MANIFEST`, `ELEVENLABS_STATE_FILE`, `ELEVENLABS_AGENT_ID`
+- `ELEVENLABS_VOICE_ID`, `DEPLOY_ENV`, `API_BASE_URL`
+
+**Runtime:** tras provision, el técnico obtiene `signed_url` vía `POST /v1/sessions/{id}/voice/connect` (§2.3).
+
+#### `GET /v1/admin/elevenlabs/agent/status` (opcional v1, supervisor/rag_admin)
+
+Response 200:
+```jsonc
+{
+  "provisioner": "api",
+  "agent_id": "agent_…",
+  "branch_id": "agtbrch_…",
+  "deployed_at": "2026-07-04T18:00:00Z",
+  "environment": "dev",
+  "tools_synced": 11,
+  "status": "deployed"
+}
+```
+
 ---
 
 ## 6. Contrato Supabase / DB
@@ -980,6 +1040,9 @@ Para evitar drift entre frontend y backend:
 | `WORK_ORDER_ALREADY_COMPLETED` | 409 | OT cerrada | `/work-orders/{id}/start` |
 | `SESSION_NOT_FOUND` | 404 | sesión no existe | `/sessions/{id}` |
 | `SESSION_ALREADY_FINALIZED` | 409 | sesión cerrada | mutaciones de sesión |
+| `SESSION_NOT_ACTIVE` | 409 | sesión no activa/pausada | `voice/connect` |
+| `AGENT_NOT_PROVISIONED` | 422 | agente ElevenLabs no provisionado | `voice/connect`, deploy CLI |
+| `VOICE_CONNECT_FAILED` | 503 | fallo al obtener signed_url | `voice/connect` |
 | `STEP_CRITICAL_CANNOT_SKIP` | 409 | intento de saltar paso crítico | `step_skip` |
 | `STEP_REQUIRES_PHOTO` | 409 | falta foto válida | `step_advance` |
 | `STEP_OUT_OF_ORDER` | 409 | step_index no es el actual | varios |

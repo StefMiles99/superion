@@ -1,0 +1,48 @@
+[
+  {
+    "name": "query_manual",
+    "description": "Consulta el manual técnico del equipo activo. Devuelve respuesta con cita.",
+    "parameters": {
+      "type": "object",
+      "properties": {
+        "question": { "type": "string", "description": "Pregunta técnica del técnico" },
+        "asset_id": { "type": "string", "description": "ID del activo" }
+      },
+      "required": ["question", "asset_id"]
+    },
+    "webhook": {
+      "method": "POST",
+      "url_template": "${API_BASE_URL}/v1/elevenlabs/tools/query_manual",
+      "headers": {},
+      "response_timeout_secs": 25
+    }
+  },
+  {
+    "name": "mark_step_complete",
+    "description": "Marca el paso actual como completado y avanza si procede.",
+    "parameters": {
+      "type": "object",
+      "properties": {
+        "step_index": { "type": "integer", "description": "Índice del paso" }
+      },
+      "required": ["step_index"]
+    },
+    "webhook": {
+      "method": "POST",
+      "url_template": "${API_BASE_URL}/v1/elevenlabs/tools/mark_step_complete",
+      "headers": {},
+      "response_timeout_secs": 25
+    }
+  },
+  {
+    "name": "get_current_step",
+    "description": "Devuelve el paso actual de la sesión.",
+    "parameters": { "type": "object", "properties": {} },
+    "webhook": {
+      "method": "POST",
+      "url_template": "${API_BASE_URL}/v1/elevenlabs/tools/get_current_step",
+      "headers": {},
+      "response_timeout_secs": 20
+    }
+  }
+]

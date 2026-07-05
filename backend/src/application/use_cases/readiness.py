@@ -44,6 +44,18 @@ class ReadinessCheck:
             ok = bool(self._settings.ELEVENLABS_API_KEY)
             checks["voice"] = "ok" if ok else "missing ELEVENLABS_API_KEY"
             all_ok = all_ok and ok
+            agent_id = self._settings.ELEVENLABS_AGENT_ID
+            if not agent_id:
+                from infrastructure.external.elevenlabs.paths import resolve_repo_relative_path
+                from infrastructure.external.elevenlabs.state_store import JsonStateStore
+
+                state = JsonStateStore(
+                    resolve_repo_relative_path(self._settings.ELEVENLABS_STATE_FILE)
+                ).load()
+                agent_id = state.agent_id if state else ""
+            agent_ok = bool(agent_id)
+            checks["elevenlabs_agent"] = "ok" if agent_ok else "not_configured"
+            all_ok = all_ok and agent_ok
 
         if self._settings.LANGGRAPH == "langgraph":
             ok = bool(self._settings.LANGGRAPH_URL)

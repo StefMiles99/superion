@@ -876,3 +876,64 @@ async def reset_auth_state() -> None:
     await limiter.reset()
     await MockLangGraphClient.shared().reset()
     await ConnectionManager.shared().reset()
+    from infrastructure.external.elevenlabs.in_memory_provisioner import InMemoryElevenLabsProvisioner
+
+    InMemoryElevenLabsProvisioner.reset_singleton()
+
+
+def get_elevenlabs_provisioner(settings: Settings | None = None):
+    from infrastructure.external.elevenlabs.in_memory_provisioner import InMemoryElevenLabsProvisioner
+    from infrastructure.external.elevenlabs.provisioner import ElevenLabsSdkProvisioner
+
+    cfg = settings or get_settings()
+    if cfg.ELEVENLABS_PROVISIONER == "memory":
+        return InMemoryElevenLabsProvisioner.shared(clock=get_clock(cfg))
+    if cfg.ELEVENLABS_PROVISIONER == "api":
+        if not cfg.ELEVENLABS_API_KEY:
+            raise ValueError("ELEVENLABS_API_KEY requerido cuando ELEVENLABS_PROVISIONER=api")
+        return ElevenLabsSdkProvisioner(api_key=cfg.ELEVENLABS_API_KEY)
+    raise ValueError(f"ELEVENLABS_PROVISIONER={cfg.ELEVENLABS_PROVISIONER} no soportado")
+
+
+def _resolved_agent_id(settings: Settings) -> str:
+    from infrastructure.external.elevenlabs.paths import resolve_repo_relative_path
+    from infrastructure.external.elevenlabs.state_store import JsonStateStore
+
+    if settings.ELEVENLABS_AGENT_ID:
+        return settings.ELEVENLABS_AGENT_ID
+    state_path = resolve_repo_relative_path(settings.ELEVENLABS_STATE_FILE)
+    state = JsonStateStore(state_path).load()
+    return state.agent_id if state else ""
+
+
+def get_elevenlabs_conversation_client(settings: Settings | None = None):
+    from infrastructure.external.elevenlabs.in_memory_conversation_client import (
+        InMemoryConversationClient,
+    )
+
+    cfg = settings or get_settings()
+    agent_id = _resolved_agent_id(cfg)
+    if cfg.VOICE == "mock" or cfg.ELEVENLABS_PROVISIONER == "memory":
+        return InMemoryConversationClient(clock=get_clock(cfg), agent_id=agent_id or "agent_mock_1")
+    raise ValueError("Cliente de conversación ElevenLabs real no implementado en BE-09")
+
+
+def get_connect_session_use_case(settings: Settings | None = None):
+    from application.use_cases.voice.connect_session import ConnectSessionUseCase
+
+    cfg = settings or get_settings()
+    return ConnectSessionUseCase(
+        sessions=get_session_repository(cfg),
+        work_orders=get_work_order_repository(cfg),
+        assets=get_asset_repository(cfg),
+        conversation_client=get_elevenlabs_conversation_client(cfg),
+        agent_id=_resolved_agent_id(cfg),
+        connect_mode=cfg.ELEVENLABS_CONNECT_MODE,
+    )
+
+
+def get_provision_status_use_case(settings: Settings | None = None):
+    from application.use_cases.elevenlabs.get_provision_status import GetProvisionStatusUseCase
+
+    cfg = settings or get_settings()
+    return GetProvisionStatusUseCase(settings=cfg)

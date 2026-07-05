@@ -1,0 +1,33 @@
+agent:
+  name: superion-technician
+  tags: [superion, maintenance, es]
+  voice_id: ${ELEVENLABS_VOICE_ID}
+  tts_model: eleven_multilingual_v2
+  language: es
+  first_message: "Hola, soy tu copiloto de mantenimiento. ¿En qué paso estás?"
+  llm: gemini-2.0-flash
+  system_prompt: !include prompts/agent-system.md
+  tools: !include tools/agent-tools.json
+  variables:
+    plant_name: "Planta Norte"
+    locale: es-MX
+
+platform:
+  webhooks:
+    conversation:
+      url: ${API_BASE_URL}/v1/elevenlabs/webhooks/conversation
+      events:
+        - conversation.started
+        - utterance.final
+        - tool.called
+        - tool.responded
+        - turn.speaker_changed
+        - conversation.ended
+        - error
+  auth:
+    enable_auth: true
+
+deployment:
+  branch: main
+  traffic_percentage: 1.0
+  environment: ${DEPLOY_ENV}
