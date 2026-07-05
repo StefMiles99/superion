@@ -33,7 +33,7 @@ PUBLIC_PATHS = frozenset({
     "/v1/auth/refresh",
 })
 
-ADMIN_PREFIXES = ("/v1/audit", "/v1/manuals", "/v1/internal/rag")
+ADMIN_PREFIXES = ("/v1/audit", "/v1/manuals", "/v1/internal/rag", "/v1/admin/elevenlabs")
 
 _tech_token: str | None = None
 _admin_token: str | None = None

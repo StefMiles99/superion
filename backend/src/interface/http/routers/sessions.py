@@ -18,6 +18,7 @@ from infrastructure.factories import (
     get_post_session_event_use_case,
     get_resume_session_use_case,
     get_session_use_case,
+    get_settings,
     get_token_blacklist,
     get_token_service,
     get_user_repository,
@@ -59,11 +60,12 @@ async def post_session_event(
     session_id: str,
     request: Request,
 ) -> dict[str, object]:
+    settings = get_settings()
     authorization = request.headers.get("Authorization")
     user = await get_current_user(
         authorization=authorization,
-        users=get_user_repository(),
-        tokens=get_token_service(),
+        users=get_user_repository(settings),
+        tokens=get_token_service(settings),
         blacklist=get_token_blacklist(),
     )
     body = AppendEventInput.model_validate(await request.json())

@@ -194,6 +194,9 @@ backend/
   - `conversation.ended` → pausar/finalizar según reason
   - `error` → log + alerta
 - **F10.4 Tools endpoint** `POST /v1/elevenlabs/tools/{tool_name}`: invoca LangGraph con auth del session_id del payload, devuelve respuesta con shape del tool.
+- **F10.5 Provisionamiento declarativo** del agente ElevenLabs desde `elevenlabs/agent.yaml` vía CLI Python (`provision`, `validate-manifest`).
+- **F10.6 Deploy automatizado** del agente (`deploy`) usando API `agents.deployments.create` sin UI web.
+- **F10.7 Voice connect** `POST /v1/sessions/{id}/voice/connect`: emite `signed_url` (o `webrtc_token`) para sesión activa sin exponer API key al cliente.
 
 ### 4.11 LangGraph client
 - **F11.1 Proxy stateless** a LangGraph con `thread_id = session_id`.

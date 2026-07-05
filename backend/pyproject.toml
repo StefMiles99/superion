@@ -14,6 +14,7 @@ dependencies = [
     "pydantic-settings>=2.6.0",
     "pydantic[email]>=2.10.0",
     "httpx>=0.28.0",
+    "pyyaml>=6.0.2",
     "pyjwt>=2.10.0",
     "bcrypt>=4.2.0",
     "python-multipart>=0.0.12",
@@ -27,6 +28,10 @@ dev = [
     "ruff>=0.8.0",
     "mypy>=1.13.0",
     "schemathesis>=3.38.0",
+]
+
+elevenlabs = [
+    "elevenlabs>=1.50.0",
 ]
 
 [tool.setuptools.packages.find]
