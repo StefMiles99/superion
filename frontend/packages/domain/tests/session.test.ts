@@ -18,7 +18,9 @@ import {
 const sampleTemplate: ProcedureTemplate = {
   id: 'tmpl-compresor',
   name: 'MP-Compresor-C3-v3',
-  manualId: 'manual-comp-1',
+  version: 3,
+  manualId: '990e8400-e29b-41d4-a716-446655440000',
+  status: 'active',
   steps: Array.from({ length: 12 }, (_, index) => ({
     index,
     title: `Paso ${String(index + 1)}`,

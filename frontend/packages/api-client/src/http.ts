@@ -327,6 +327,33 @@ export class HttpApiClient implements IApiClient {
     throw new NotImplementedError('HttpApiClient.searchManual — implementar en FE-11+');
   }
 
+  async listProcedureTemplates(): Promise<
+    Paginated<import('@superion/domain').ProcedureTemplateListItem>
+  > {
+    throw new NotImplementedError('HttpApiClient.listProcedureTemplates — implementar en FE-12+');
+  }
+
+  async getProcedureTemplate(_id: string): Promise<import('@superion/domain').ProcedureTemplate> {
+    throw new NotImplementedError('HttpApiClient.getProcedureTemplate — implementar en FE-12+');
+  }
+
+  async createProcedureTemplate(
+    _input: import('@superion/domain').CreateProcedureTemplateInput,
+  ): Promise<import('@superion/domain').ProcedureTemplate> {
+    throw new NotImplementedError('HttpApiClient.createProcedureTemplate — implementar en FE-12+');
+  }
+
+  async updateProcedureTemplate(
+    _id: string,
+    _input: import('@superion/domain').UpdateProcedureTemplateInput,
+  ): Promise<import('@superion/domain').ProcedureTemplate> {
+    throw new NotImplementedError('HttpApiClient.updateProcedureTemplate — implementar en FE-12+');
+  }
+
+  async archiveProcedureTemplate(_id: string): Promise<void> {
+    throw new NotImplementedError('HttpApiClient.archiveProcedureTemplate — implementar en FE-12+');
+  }
+
   async healthCheck(): Promise<{ status: string }> {
     return this.request<{ status: string }>('/health');
   }

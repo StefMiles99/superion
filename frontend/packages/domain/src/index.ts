@@ -1,4 +1,5 @@
 export * from './entities/assistant';
+export * from './entities/procedure_template';
 export * from './entities/manual';
 export * from './entities/auth';
 export * from './entities/photo';
@@ -12,3 +13,4 @@ export * from './ports/IApiClient';
 export * from './ports/IStorage';
 export * from './ports/IWsClient';
 export * from './validators/zod';
+export * from './validators/procedure_validator';
