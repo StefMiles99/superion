@@ -17,6 +17,12 @@ import type {
   ManualUploadInput,
   ManualUploadResponse,
 } from '../entities/manual';
+import type {
+  CreateProcedureTemplateInput,
+  ProcedureTemplate,
+  ProcedureTemplateListItem,
+  UpdateProcedureTemplateInput,
+} from '../entities/procedure_template';
 import type { User } from '../entities/user';
 import type { WorkOrder, WorkOrderDetail, WorkOrderFilter } from '../entities/work_order';
 import type { WsEvent } from './IWsClient';
@@ -62,6 +68,14 @@ export interface IApiClient {
   reindexManual(id: string): Promise<ManualReindexResponse>;
   archiveManual(id: string): Promise<void>;
   searchManual(id: string, query: string): Promise<ManualSearchResponse>;
+  listProcedureTemplates(): Promise<Paginated<ProcedureTemplateListItem>>;
+  getProcedureTemplate(id: string): Promise<ProcedureTemplate>;
+  createProcedureTemplate(input: CreateProcedureTemplateInput): Promise<ProcedureTemplate>;
+  updateProcedureTemplate(
+    id: string,
+    input: UpdateProcedureTemplateInput,
+  ): Promise<ProcedureTemplate>;
+  archiveProcedureTemplate(id: string): Promise<void>;
   healthCheck(): Promise<{ status: string }>;
   setTokens?(accessToken: string | null, refreshToken?: string | null): void;
   reset?(): void;

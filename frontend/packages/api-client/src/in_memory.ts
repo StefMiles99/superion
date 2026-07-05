@@ -2,14 +2,17 @@ import type { LoginInput, LoginResponse, RefreshInput } from '@superion/domain';
 import type { AssistantAnswer } from '@superion/domain';
 import { AuthError } from '@superion/domain';
 import type {
+  CreateProcedureTemplateInput,
   IApiClient,
   Paginated,
   PhotoUploadResponse,
+  ProcedureTemplate,
   Session,
   SessionEventInput,
   SessionEventResponse,
   SessionStart,
   SessionSummary,
+  UpdateProcedureTemplateInput,
   WsEvent,
 } from '@superion/domain';
 import type { User } from '@superion/domain';
@@ -28,6 +31,13 @@ import {
   validateManualPdf,
   type StoredManualRecord,
 } from './manual_helpers';
+import {
+  buildProcedureTemplateFromInput,
+  cloneProcedureTemplateRecord,
+  createProcedureTemplateFixtures,
+  toProcedureTemplateListItem,
+  type StoredProcedureTemplate,
+} from './procedure_helpers';
 import { buildMaintenanceReport, buildMockPdfBytes, createReportId } from './report_helpers';
 import {
   FIXTURE_PROCEDURE_TEMPLATES,
@@ -299,17 +309,13 @@ interface StoredSession {
 
 export type PhotoWsEventEmitter = (event: WsEvent) => void;
 
-function cloneProcedureTemplate(templateId: string) {
-  const template = FIXTURE_PROCEDURE_TEMPLATES[templateId];
+function cloneProcedureTemplate(templateId: string, templates: StoredProcedureTemplate[]) {
+  const stored = templates.find((item) => item.id === templateId);
+  const template = stored ?? FIXTURE_PROCEDURE_TEMPLATES[templateId];
   if (!template) {
     return null;
   }
-  return {
-    ...template,
-    steps: template.steps.map((step) => ({ ...step })),
-    criticalStepIndices: [...template.criticalStepIndices],
-    photoRequiredStepIndices: [...template.photoRequiredStepIndices],
-  };
+  return cloneProcedureTemplateRecord(template);
 }
 
 function createPhotoId(counter: number): string {
@@ -456,6 +462,8 @@ export class InMemoryApiClient implements IApiClient {
   private manuals: StoredManualRecord[] = createManualFixtures();
   private manualCounter = 0;
   private manualIndexingTimers = new Map<string, ReturnType<typeof setTimeout>>();
+  private procedureTemplates: StoredProcedureTemplate[] = createProcedureTemplateFixtures();
+  private procedureTemplateCounter = 0;
 
   constructor() {
     this.seedDashboardStoredSessions();
@@ -749,7 +757,7 @@ export class InMemoryApiClient implements IApiClient {
       throw new ApiError('Paso fuera de orden', 409, 'STEP_OUT_OF_ORDER');
     }
 
-    const template = FIXTURE_PROCEDURE_TEMPLATES[stored.procedureTemplateId];
+    const template = this.getProcedureTemplateRecord(stored.procedureTemplateId);
     if (!template) {
       throw new ApiError('Plantilla no encontrada', 404, 'WORK_ORDER_NOT_FOUND');
     }
@@ -874,7 +882,7 @@ export class InMemoryApiClient implements IApiClient {
     }
 
     const procedureTemplateId = WORK_ORDER_TEMPLATE_IDS[workOrderId] ?? 'tmpl-compresor';
-    const procedureTemplate = cloneProcedureTemplate(procedureTemplateId);
+    const procedureTemplate = cloneProcedureTemplate(procedureTemplateId, this.procedureTemplates);
     if (!procedureTemplate) {
       throw new ApiError('Plantilla no encontrada', 404, 'WORK_ORDER_NOT_FOUND');
     }
@@ -980,7 +988,7 @@ export class InMemoryApiClient implements IApiClient {
         throw new ApiError('Paso fuera de orden', 409, 'STEP_OUT_OF_ORDER');
       }
 
-      const template = FIXTURE_PROCEDURE_TEMPLATES[stored.procedureTemplateId];
+      const template = this.getProcedureTemplateRecord(stored.procedureTemplateId);
       if (!template) {
         throw new ApiError('Plantilla no encontrada', 404, 'WORK_ORDER_NOT_FOUND');
       }
@@ -1287,7 +1295,7 @@ export class InMemoryApiClient implements IApiClient {
       throw new ApiError('La sesión ya está finalizada', 409, 'SESSION_ALREADY_FINALIZED');
     }
 
-    const template = FIXTURE_PROCEDURE_TEMPLATES[stored.procedureTemplateId];
+    const template = this.getProcedureTemplateRecord(stored.procedureTemplateId);
     if (!template) {
       throw new ApiError('Plantilla no encontrada', 404, 'WORK_ORDER_NOT_FOUND');
     }
@@ -1491,7 +1499,7 @@ export class InMemoryApiClient implements IApiClient {
     }
 
     const current = this.dashboardSessions[index]!;
-    const template = FIXTURE_PROCEDURE_TEMPLATES[stored.procedureTemplateId];
+    const template = this.getProcedureTemplateRecord(stored.procedureTemplateId);
     const stepTitle =
       template?.steps[stored.session.currentStepIndex]?.title ?? current.currentStepTitle;
 
@@ -1592,6 +1600,112 @@ export class InMemoryApiClient implements IApiClient {
     });
   }
 
+  private resolveManualTitle(manualId: string): string {
+    const manual = this.manuals.find((item) => item.id === manualId);
+    return manual?.title ?? manualId;
+  }
+
+  private getProcedureTemplateRecord(templateId: string): ProcedureTemplate | null {
+    return cloneProcedureTemplate(templateId, this.procedureTemplates);
+  }
+
+  private createProcedureTemplateId(): string {
+    this.procedureTemplateCounter += 1;
+    return `bb0e8400-e29b-41d4-a716-${String(this.procedureTemplateCounter).padStart(12, '0')}`;
+  }
+
+  async listProcedureTemplates(): Promise<Paginated<import('@superion/domain').ProcedureTemplateListItem>> {
+    if (!this.currentUser) {
+      throw new AuthError('No autenticado');
+    }
+
+    const items = this.procedureTemplates.map((template) =>
+      toProcedureTemplateListItem(template, this.resolveManualTitle(template.manualId)),
+    );
+    return { items, nextCursor: null };
+  }
+
+  async getProcedureTemplate(id: string): Promise<ProcedureTemplate> {
+    if (!this.currentUser) {
+      throw new AuthError('No autenticado');
+    }
+
+    const template = this.getProcedureTemplateRecord(id);
+    if (!template) {
+      throw new ApiError('Plantilla no encontrada', 404, 'PROCEDURE_TEMPLATE_NOT_FOUND');
+    }
+    return template;
+  }
+
+  async createProcedureTemplate(input: CreateProcedureTemplateInput): Promise<ProcedureTemplate> {
+    if (!this.currentUser) {
+      throw new AuthError('No autenticado');
+    }
+
+    const manual = this.manuals.find((item) => item.id === input.manualId);
+    if (!manual || manual.status === 'archived') {
+      throw new ApiError('Manual no encontrado o archivado', 422, 'VALIDATION_ERROR');
+    }
+
+    const id = this.createProcedureTemplateId();
+    const template = buildProcedureTemplateFromInput(id, input);
+    this.procedureTemplates.unshift(template);
+    FIXTURE_PROCEDURE_TEMPLATES[id] = template;
+    return cloneProcedureTemplateRecord(template);
+  }
+
+  async updateProcedureTemplate(
+    id: string,
+    input: UpdateProcedureTemplateInput,
+  ): Promise<ProcedureTemplate> {
+    if (!this.currentUser) {
+      throw new AuthError('No autenticado');
+    }
+
+    const index = this.procedureTemplates.findIndex((item) => item.id === id);
+    if (index === -1) {
+      throw new ApiError('Plantilla no encontrada', 404, 'PROCEDURE_TEMPLATE_NOT_FOUND');
+    }
+
+    const current = this.procedureTemplates[index]!;
+    if (current.status === 'archived') {
+      throw new ApiError('No se puede editar una plantilla archivada', 422, 'VALIDATION_ERROR');
+    }
+
+    const manual = this.manuals.find((item) => item.id === input.manualId);
+    if (!manual || manual.status === 'archived') {
+      throw new ApiError('Manual no encontrado o archivado', 422, 'VALIDATION_ERROR');
+    }
+
+    const updated = buildProcedureTemplateFromInput(id, input);
+    const next: StoredProcedureTemplate = {
+      ...updated,
+      status: current.status,
+    };
+    this.procedureTemplates[index] = next;
+    FIXTURE_PROCEDURE_TEMPLATES[id] = next;
+    return cloneProcedureTemplateRecord(next);
+  }
+
+  async archiveProcedureTemplate(id: string): Promise<void> {
+    if (!this.currentUser) {
+      throw new AuthError('No autenticado');
+    }
+
+    const index = this.procedureTemplates.findIndex((item) => item.id === id);
+    if (index === -1) {
+      throw new ApiError('Plantilla no encontrada', 404, 'PROCEDURE_TEMPLATE_NOT_FOUND');
+    }
+
+    const current = this.procedureTemplates[index]!;
+    const archived: StoredProcedureTemplate = {
+      ...current,
+      status: 'archived',
+    };
+    this.procedureTemplates[index] = archived;
+    FIXTURE_PROCEDURE_TEMPLATES[id] = archived;
+  }
+
   reset(): void {
     this.users = FIXTURE_USERS.map((user) => ({ ...user }));
     this.workOrders = FIXTURE_WORK_ORDERS.map((wo) => ({
@@ -1618,5 +1732,7 @@ export class InMemoryApiClient implements IApiClient {
     this.manualIndexingTimers.clear();
     this.manuals = createManualFixtures();
     this.manualCounter = 0;
+    this.procedureTemplates = createProcedureTemplateFixtures();
+    this.procedureTemplateCounter = 0;
   }
 }

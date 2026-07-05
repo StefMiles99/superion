@@ -62,25 +62,30 @@ export const FIXTURE_PROCEDURE_TEMPLATES: Record<string, ProcedureTemplate> = {
   'tmpl-compresor': {
     id: 'tmpl-compresor',
     name: 'MP-Compresor-C3-v3',
-    manualId: 'manual-comp-1',
+    version: 3,
+    manualId: '990e8400-e29b-41d4-a716-446655440000',
     steps: buildCompresorSteps(),
     criticalStepIndices: [3, 7],
     photoRequiredStepIndices: [3, 5],
     estimatedMinutes: 90,
+    status: 'active',
   },
   'tmpl-bomba': {
     id: 'tmpl-bomba',
     name: 'MP-Bomba-B2-v1',
-    manualId: 'manual-bomb-1',
+    version: 1,
+    manualId: '990e8400-e29b-41d4-a716-446655440001',
     steps: buildBombaSteps(),
     criticalStepIndices: [2, 6],
     photoRequiredStepIndices: [3, 9],
     estimatedMinutes: 60,
+    status: 'active',
   },
   'tmpl-motor': {
     id: 'tmpl-motor',
     name: 'MP-Motor-M1-v2',
-    manualId: 'manual-motor-1',
+    version: 2,
+    manualId: '990e8400-e29b-41d4-a716-446655440000',
     steps: buildBombaSteps().map((step, index) => ({
       ...step,
       index,
@@ -89,6 +94,7 @@ export const FIXTURE_PROCEDURE_TEMPLATES: Record<string, ProcedureTemplate> = {
     criticalStepIndices: [1, 5],
     photoRequiredStepIndices: [2],
     estimatedMinutes: 45,
+    status: 'active',
   },
 };
 

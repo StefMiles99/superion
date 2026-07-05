@@ -334,6 +334,81 @@
       "errorLoading": "No se pudo cargar el manual."
     }
   },
+  "procedures": {
+    "title": "Plantillas de procedimiento",
+    "newButton": "Nueva plantilla",
+    "empty": "No hay plantillas registradas.",
+    "errorLoading": "No se pudo cargar la lista de plantillas.",
+    "confirmArchive": "¿Archivar «{{name}}»? La plantilla dejará de estar activa.",
+    "confirmCancel": "Cancelar",
+    "confirmSubmit": "Confirmar",
+    "columns": {
+      "name": "Nombre",
+      "version": "Versión",
+      "manual": "Manual",
+      "steps": "Pasos",
+      "minutes": "Minutos",
+      "status": "Estado",
+      "actions": "Acciones"
+    },
+    "status": {
+      "active": "Activa",
+      "archived": "Archivada"
+    },
+    "actions": {
+      "duplicate": "Duplicar",
+      "archive": "Archivar"
+    },
+    "fields": {
+      "name": "Nombre",
+      "version": "Versión",
+      "manual": "Manual asociado",
+      "estimatedMinutes": "Minutos estimados totales"
+    },
+    "manualSelector": {
+      "empty": "No hay manuales activos disponibles.",
+      "uploadCta": "Sube un manual primero",
+      "searchPlaceholder": "Buscar manual…",
+      "placeholder": "Selecciona un manual"
+    },
+    "steps": {
+      "add": "Añadir paso",
+      "remove": "Eliminar paso",
+      "title": "Título del paso",
+      "description": "Descripción",
+      "estimatedMinutes": "Minutos estimados",
+      "critical": "Crítico",
+      "requiresPhoto": "Requiere foto",
+      "photoCriteria": "Criterio de foto",
+      "dragHandle": "Arrastrar paso {{number}}",
+      "stepNumber": "Paso {{number}}"
+    },
+    "editor": {
+      "newTitle": "Nueva plantilla",
+      "editTitle": "Editar plantilla",
+      "back": "Volver a plantillas",
+      "save": "Guardar"
+    },
+    "validation": {
+      "nameRequired": "El nombre es obligatorio",
+      "versionInvalid": "La versión debe ser mayor o igual a 1",
+      "manualRequired": "Selecciona un manual activo",
+      "estimatedMinutesInvalid": "Los minutos estimados deben ser mayores que 0",
+      "stepsRequired": "Añade al menos un paso",
+      "stepsNotContiguous": "Los pasos deben tener índices contiguos desde 0",
+      "criticalOutOfRange": "Paso crítico fuera de rango",
+      "photoOutOfRange": "Paso con foto fuera de rango",
+      "stepTitleRequired": "El título del paso es obligatorio",
+      "stepMinutesInvalid": "Los minutos del paso deben ser mayores que 0",
+      "photoCriteriaRequired": "Indica el criterio de foto cuando requiere evidencia"
+    },
+    "toast": {
+      "created": "Plantilla creada",
+      "updated": "Plantilla actualizada",
+      "archived": "Plantilla archivada",
+      "loadError": "No se pudo cargar la plantilla"
+    }
+  },
   "common": {
     "loading": "Cargando…"
   },

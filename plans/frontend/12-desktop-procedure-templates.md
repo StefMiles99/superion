@@ -1,6 +1,6 @@
 # FE-12 — Desktop · Procedure templates editor
 
-**Estado:** ⏳
+**Estado:** ✅
 **Depende de:** FE-11
 **Desbloquea:** —
 **PRD features:** D5.1, D5.2, D5.3, D5.4, D5.5
@@ -103,13 +103,13 @@ test('create procedure template', async ({ page }) => {
 
 ## Definition of Done
 
-- [ ] Lista de plantillas renderiza
-- [ ] Editor permite crear plantilla con N pasos
-- [ ] Drag&drop reorder funciona
-- [ ] Flags critical y requires_photo con criterios
-- [ ] Validación inline (errores visibles al guardar)
-- [ ] Duplicar y archivar funcionan
-- [ ] E2E Playwright pasa
+- [x] Lista de plantillas renderiza
+- [x] Editor permite crear plantilla con N pasos
+- [x] Drag&drop reorder funciona
+- [x] Flags critical y requires_photo con criterios
+- [x] Validación inline (errores visibles al guardar)
+- [x] Duplicar y archivar funcionan
+- [x] E2E Playwright pasa
 
 ## Notas
 

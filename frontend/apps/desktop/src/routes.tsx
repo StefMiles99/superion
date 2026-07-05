@@ -10,6 +10,8 @@ const SessionDetailPage = lazy(() => import('./pages/SessionDetailPage'));
 const ManualsPage = lazy(() => import('./pages/ManualsPage'));
 const ManualUploadPage = lazy(() => import('./pages/ManualUploadPage'));
 const ManualDetailPage = lazy(() => import('./pages/ManualDetailPage'));
+const ProcedureTemplatesPage = lazy(() => import('./pages/ProcedureTemplatesPage'));
+const ProcedureTemplateEditorPage = lazy(() => import('./pages/ProcedureTemplateEditorPage'));
 
 function PageFallback() {
   return (
@@ -65,6 +67,30 @@ export const router = createBrowserRouter([
     element: withSuspense(
       <RequireAuth>
         <ManualDetailPage />
+      </RequireAuth>,
+    ),
+  },
+  {
+    path: '/procedures',
+    element: withSuspense(
+      <RequireAuth>
+        <ProcedureTemplatesPage />
+      </RequireAuth>,
+    ),
+  },
+  {
+    path: '/procedures/new',
+    element: withSuspense(
+      <RequireAuth>
+        <ProcedureTemplateEditorPage />
+      </RequireAuth>,
+    ),
+  },
+  {
+    path: '/procedures/:id',
+    element: withSuspense(
+      <RequireAuth>
+        <ProcedureTemplateEditorPage />
       </RequireAuth>,
     ),
   },
