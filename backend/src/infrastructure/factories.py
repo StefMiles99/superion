@@ -907,15 +907,26 @@ def _resolved_agent_id(settings: Settings) -> str:
 
 
 def get_elevenlabs_conversation_client(settings: Settings | None = None):
+    from infrastructure.external.elevenlabs.conversation_client import (
+        ElevenLabsSdkConversationClient,
+    )
     from infrastructure.external.elevenlabs.in_memory_conversation_client import (
         InMemoryConversationClient,
     )
 
     cfg = settings or get_settings()
     agent_id = _resolved_agent_id(cfg)
-    if cfg.VOICE == "mock" or cfg.ELEVENLABS_PROVISIONER == "memory":
-        return InMemoryConversationClient(clock=get_clock(cfg), agent_id=agent_id or "agent_mock_1")
-    raise ValueError("Cliente de conversación ElevenLabs real no implementado en BE-09")
+    if (
+        cfg.VOICE == "elevenlabs"
+        and cfg.ELEVENLABS_PROVISIONER == "api"
+        and cfg.ELEVENLABS_API_KEY
+    ):
+        return ElevenLabsSdkConversationClient(
+            api_key=cfg.ELEVENLABS_API_KEY,
+            clock=get_clock(cfg),
+            connect_mode=cfg.ELEVENLABS_CONNECT_MODE,
+        )
+    return InMemoryConversationClient(clock=get_clock(cfg), agent_id=agent_id or "agent_mock_1")
 
 
 def get_connect_session_use_case(settings: Settings | None = None):
