@@ -24,4 +24,13 @@ export function initI18n(locale = 'es-ES'): typeof i18n {
   return i18n;
 }
 
+export function formatDate(value: Date | string, locale = 'es-ES'): string {
+  const date = typeof value === 'string' ? new Date(value) : value;
+  return new Intl.DateTimeFormat(locale).format(date);
+}
+
+export function formatNumber(value: number, locale = 'es-ES'): string {
+  return new Intl.NumberFormat(locale).format(value);
+}
+
 export { i18n };

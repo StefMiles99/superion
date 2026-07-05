@@ -7,6 +7,8 @@ interface ImportMetaEnv {
   readonly VITE_DEFAULT_THEME: 'dark' | 'light';
   readonly VITE_SENTRY_DSN: string;
   readonly VITE_TELEMETRY_ENABLED: string;
+  readonly VITE_PWA_ENABLED: string;
+  readonly VITE_WEB_VITALS_ENDPOINT: string;
   readonly VITE_PHOTO_MAX_SIZE_MB: string;
   readonly VITE_PHOTO_MAX_RETRIES: string;
 }

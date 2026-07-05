@@ -1,5 +1,4 @@
-const CACHE_NAME = 'superion-mobile-v2';
-const PHOTO_SYNC_TAG = 'photo-queue-sync';
+const CACHE_NAME = 'superion-desktop-v1';
 
 self.addEventListener('install', (event) => {
   event.waitUntil(self.skipWaiting());
@@ -49,16 +48,4 @@ self.addEventListener('fetch', (event) => {
       }
     }),
   );
-});
-
-self.addEventListener('sync', (event) => {
-  if (event.tag === PHOTO_SYNC_TAG) {
-    event.waitUntil(
-      self.clients.matchAll({ type: 'window', includeUncontrolled: true }).then((clients) => {
-        for (const client of clients) {
-          client.postMessage({ type: 'photo-queue-sync' });
-        }
-      }),
-    );
-  }
 });

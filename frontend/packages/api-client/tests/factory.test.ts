@@ -28,6 +28,8 @@ describe('getApiClient factory', () => {
       VITE_DEFAULT_THEME: 'dark',
       VITE_SENTRY_DSN: '',
       VITE_TELEMETRY_ENABLED: true,
+      VITE_PWA_ENABLED: true,
+      VITE_WEB_VITALS_ENDPOINT: '',
       VITE_PHOTO_MAX_SIZE_MB: 10,
       VITE_PHOTO_MAX_RETRIES: 3,
     });
@@ -46,6 +48,8 @@ describe('getApiClient factory', () => {
       VITE_DEFAULT_THEME: 'dark',
       VITE_SENTRY_DSN: '',
       VITE_TELEMETRY_ENABLED: true,
+      VITE_PWA_ENABLED: true,
+      VITE_WEB_VITALS_ENDPOINT: '',
       VITE_PHOTO_MAX_SIZE_MB: 10,
       VITE_PHOTO_MAX_RETRIES: 3,
     });

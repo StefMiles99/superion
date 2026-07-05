@@ -1,6 +1,7 @@
 import { getApiClient } from '@superion/api-client';
 import { getEnv } from '@superion/config';
 import type { PhotoUploadResponse } from '@superion/domain';
+import { trackEvent } from '@superion/telemetry';
 import { getWsClient } from '@superion/ws-client';
 import { useMutation, useQueryClient } from '@tanstack/react-query';
 import { useCallback, useEffect, useRef, useState } from 'react';
@@ -148,6 +149,12 @@ export function useUploadPhoto(sessionId: string | undefined) {
         status: 'validating',
         photoId: response.photoId,
       }));
+
+      trackEvent('photo_uploaded', {
+        sessionId,
+        stepIndex: input.stepIndex,
+        photoId: response.photoId,
+      });
 
       return response;
     },

@@ -2,11 +2,18 @@
 @tailwind components;
 @tailwind utilities;
 
-:root {
+:root,
+:root[data-theme='dark'] {
   color-scheme: dark;
   font-family: Inter, system-ui, sans-serif;
   background-color: hsl(222 47% 6%);
   color: hsl(210 40% 98%);
+}
+
+:root[data-theme='light'] {
+  color-scheme: light;
+  background-color: hsl(210 40% 98%);
+  color: hsl(222 47% 11%);
 }
 
 body {

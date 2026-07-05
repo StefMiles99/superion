@@ -459,5 +459,19 @@
       "med": "Media",
       "high": "Alta"
     }
+  },
+  "errors": {
+    "boundaryTitle": "Algo salió mal",
+    "boundaryMessage": "Ha ocurrido un error inesperado. Puedes recargar la aplicación.",
+    "boundaryReload": "Recargar",
+    "sessionBoundaryTitle": "Error en la sesión",
+    "sessionBoundaryMessage": "No se pudo renderizar la sesión de mantenimiento. Recarga para continuar."
+  },
+  "pwa": {
+    "installPrompt": "Instalar SUPERION",
+    "installDismiss": "Ahora no"
+  },
+  "a11y": {
+    "skipToContent": "Saltar al contenido principal"
   }
 }

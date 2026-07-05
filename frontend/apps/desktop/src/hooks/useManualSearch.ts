@@ -1,4 +1,5 @@
 import { getApiClient } from '@superion/api-client';
+import { trackEvent } from '@superion/telemetry';
 import { useQuery } from '@tanstack/react-query';
 import { useEffect, useState } from 'react';
 
@@ -24,7 +25,13 @@ export function useManualSearch(manualId: string | undefined, query: string) {
       if (!manualId) {
         throw new Error('manualId requerido');
       }
-      return getApiClient().searchManual(manualId, debouncedQuery);
+      const result = await getApiClient().searchManual(manualId, debouncedQuery);
+      trackEvent('manual_searched', {
+        manualId,
+        query: debouncedQuery,
+        resultCount: result.items.length,
+      });
+      return result;
     },
   });
 }

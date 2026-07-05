@@ -1,4 +1,5 @@
 import { getApiClient } from '@superion/api-client';
+import { trackEvent } from '@superion/telemetry';
 import { useMutation, useQueryClient } from '@tanstack/react-query';
 import { useNavigate } from 'react-router';
 
@@ -12,6 +13,10 @@ export function useStartSession() {
       return api.startSession(workOrderId);
     },
     onSuccess: (data) => {
+      trackEvent('session_started', {
+        sessionId: data.sessionId,
+        workOrderId: data.workOrderId,
+      });
       queryClient.setQueryData(['session', data.sessionId], {
         id: data.sessionId,
         workOrderId: data.workOrderId,

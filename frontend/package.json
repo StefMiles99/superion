@@ -21,6 +21,13 @@
     "node": ">=20"
   },
   "pnpm": {
-    "onlyBuiltDependencies": ["esbuild"]
+    "onlyBuiltDependencies": [
+      "esbuild"
+    ]
+  },
+  "dependencies": {
+    "@axe-core/playwright": "^4.12.1",
+    "axe-core": "^4.12.1",
+    "vitest-axe": "^0.1.0"
   }
 }
