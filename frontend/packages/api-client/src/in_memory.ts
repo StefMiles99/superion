@@ -17,6 +17,17 @@ import type { WorkOrder, WorkOrderDetail, WorkOrderFilter } from '@superion/doma
 import { matchesWorkOrderFilter } from '@superion/domain';
 
 import { ApiError } from './errors';
+import {
+  createManualFixtures,
+  extractChunksFromText,
+  nextManualVersion,
+  readBlobText,
+  searchManualChunks,
+  toManualDetail,
+  toManualListItem,
+  validateManualPdf,
+  type StoredManualRecord,
+} from './manual_helpers';
 import { buildMaintenanceReport, buildMockPdfBytes, createReportId } from './report_helpers';
 import {
   FIXTURE_PROCEDURE_TEMPLATES,
@@ -387,6 +398,24 @@ function createMockRefreshToken(userId: string): string {
   return `v1.mock.${userId}`;
 }
 
+function decodeMockJwtSub(accessToken: string): string | null {
+  const parts = accessToken.split('.');
+  if (parts.length !== 3) {
+    return null;
+  }
+
+  try {
+    const payload = JSON.parse(base64Decode(parts[1]!)) as { sub?: string };
+    return typeof payload.sub === 'string' ? payload.sub : null;
+  } catch {
+    return null;
+  }
+}
+
+function base64Decode(value: string): string {
+  return globalThis.atob(value);
+}
+
 function paginateWorkOrders(
   items: WorkOrder[],
   filter: WorkOrderFilter = {},
@@ -424,6 +453,9 @@ export class InMemoryApiClient implements IApiClient {
   private readonly maxPhotoRetries = 3;
   private dashboardSessions: SessionSummary[] = createDashboardSessionFixtures(() => Date.now());
   private sessionNotes = new Map<string, string[]>();
+  private manuals: StoredManualRecord[] = createManualFixtures();
+  private manualCounter = 0;
+  private manualIndexingTimers = new Map<string, ReturnType<typeof setTimeout>>();
 
   constructor() {
     this.seedDashboardStoredSessions();
@@ -577,6 +609,20 @@ export class InMemoryApiClient implements IApiClient {
     if (refreshToken !== undefined) {
       this.refreshToken = refreshToken;
     }
+
+    if (!accessToken) {
+      this.currentUser = null;
+      return;
+    }
+
+    const userId = decodeMockJwtSub(accessToken);
+    if (!userId) {
+      this.currentUser = null;
+      return;
+    }
+
+    const user = this.users.find((fixture) => fixture.id === userId);
+    this.currentUser = user ? { ...user } : null;
   }
 
   async login(input: LoginInput): Promise<LoginResponse> {
@@ -1292,6 +1338,148 @@ export class InMemoryApiClient implements IApiClient {
     };
   }
 
+  async listManuals(): Promise<{ items: import('@superion/domain').Manual[] }> {
+    if (!this.currentUser) {
+      throw new AuthError('No autenticado');
+    }
+
+    return {
+      items: this.manuals.map((manual) => toManualListItem(manual)),
+    };
+  }
+
+  async getManual(id: string): Promise<import('@superion/domain').ManualDetail> {
+    if (!this.currentUser) {
+      throw new AuthError('No autenticado');
+    }
+
+    const manual = this.manuals.find((item) => item.id === id);
+    if (!manual) {
+      throw new ApiError('Manual no encontrado', 404, 'MANUAL_NOT_FOUND');
+    }
+
+    return toManualDetail(manual);
+  }
+
+  async uploadManual(
+    input: import('@superion/domain').ManualUploadInput,
+  ): Promise<import('@superion/domain').ManualUploadResponse> {
+    if (!this.currentUser) {
+      throw new AuthError('No autenticado');
+    }
+
+    validateManualPdf(input.file);
+
+    const title = input.title.trim();
+    const assetModel = input.assetModel.trim();
+    if (!title || !assetModel) {
+      throw new ApiError('Título y modelo son obligatorios', 422, 'VALIDATION_ERROR');
+    }
+
+    this.manualCounter += 1;
+    const manualId = `990e8400-e29b-41d4-a716-44665544${String(1000 + this.manualCounter).slice(-4)}`;
+    const textContent = await readBlobText(input.file);
+    const chunks = extractChunksFromText(textContent);
+
+    const record: StoredManualRecord = {
+      id: manualId,
+      title,
+      assetModel,
+      version: nextManualVersion(this.manuals, assetModel),
+      status: 'indexing',
+      indexStatus: 'pending',
+      chunkCount: 0,
+      uploadedAt: new Date(this.now()).toISOString(),
+      uploadedBy: {
+        id: this.currentUser.id,
+        fullName: this.currentUser.fullName,
+      },
+      downloadUrl: `mock://manuals/${manualId}`,
+      chunks,
+    };
+
+    this.manuals.unshift(record);
+    this.scheduleManualIndexing(manualId);
+
+    return {
+      manualId,
+      indexStatus: 'pending',
+      estimatedSeconds: 2,
+    };
+  }
+
+  async reindexManual(
+    id: string,
+  ): Promise<import('@superion/domain').ManualReindexResponse> {
+    if (!this.currentUser) {
+      throw new AuthError('No autenticado');
+    }
+
+    const index = this.manuals.findIndex((item) => item.id === id);
+    if (index === -1) {
+      throw new ApiError('Manual no encontrado', 404, 'MANUAL_NOT_FOUND');
+    }
+
+    const current = this.manuals[index]!;
+    if (current.status === 'archived') {
+      throw new ApiError('No se puede reindexar un manual archivado', 422, 'VALIDATION_ERROR');
+    }
+
+    this.manuals[index] = {
+      ...current,
+      status: 'indexing',
+      indexStatus: 'pending',
+      chunkCount: 0,
+    };
+
+    this.scheduleManualIndexing(id);
+
+    return {
+      manualId: id,
+      indexStatus: 'pending',
+    };
+  }
+
+  async archiveManual(id: string): Promise<void> {
+    if (!this.currentUser) {
+      throw new AuthError('No autenticado');
+    }
+
+    const index = this.manuals.findIndex((item) => item.id === id);
+    if (index === -1) {
+      throw new ApiError('Manual no encontrado', 404, 'MANUAL_NOT_FOUND');
+    }
+
+    const current = this.manuals[index]!;
+    if (current.status === 'archived') {
+      throw new ApiError('Manual ya archivado', 422, 'VALIDATION_ERROR');
+    }
+
+    this.clearManualIndexingTimer(id);
+    this.manuals[index] = {
+      ...current,
+      status: 'archived',
+    };
+  }
+
+  async searchManual(
+    id: string,
+    query: string,
+  ): Promise<import('@superion/domain').ManualSearchResponse> {
+    if (!this.currentUser) {
+      throw new AuthError('No autenticado');
+    }
+
+    const manual = this.manuals.find((item) => item.id === id);
+    if (!manual) {
+      throw new ApiError('Manual no encontrado', 404, 'MANUAL_NOT_FOUND');
+    }
+
+    return {
+      items: searchManualChunks(manual.chunks, query),
+    };
+  }
+
   async healthCheck(): Promise<{ status: string }> {
     return { status: 'ok' };
   }
@@ -1316,6 +1504,60 @@ export class InMemoryApiClient implements IApiClient {
       lastEventType: 'step.completed',
       lastEventAt: new Date(this.now()).toISOString(),
     };
+  }
+
+  private clearManualIndexingTimer(manualId: string): void {
+    const timer = this.manualIndexingTimers.get(manualId);
+    if (timer) {
+      clearTimeout(timer);
+      this.manualIndexingTimers.delete(manualId);
+    }
+  }
+
+  private scheduleManualIndexing(manualId: string): void {
+    this.clearManualIndexingTimer(manualId);
+
+    const timer = setTimeout(() => {
+      const index = this.manuals.findIndex((item) => item.id === manualId);
+      if (index === -1) {
+        return;
+      }
+
+      const current = this.manuals[index]!;
+      this.manuals[index] = {
+        ...current,
+        status: 'active',
+        indexStatus: 'indexed',
+        chunkCount: current.chunks.length,
+      };
+
+      this.emitManualIndexStatusChanged(manualId, 'indexed', current.chunks.length);
+      this.manualIndexingTimers.delete(manualId);
+    }, 500);
+
+    this.manualIndexingTimers.set(manualId, timer);
+    this.emitManualIndexStatusChanged(manualId, 'pending', 0);
+  }
+
+  private emitManualIndexStatusChanged(
+    manualId: string,
+    indexStatus: 'pending' | 'indexed' | 'failed',
+    chunkCount: number,
+  ): void {
+    const emit = this.photoEventEmitter;
+    if (!emit) {
+      return;
+    }
+
+    emit({
+      type: 'manual.index_status_changed',
+      created_at: new Date(this.now()).toISOString(),
+      payload: {
+        manual_id: manualId,
+        index_status: indexStatus,
+        chunk_count: chunkCount,
+      },
+    });
   }
 
   private syncDashboardSessionStatus(
@@ -1370,5 +1612,11 @@ export class InMemoryApiClient implements IApiClient {
     this.dashboardSessions = createDashboardSessionFixtures(this.now);
     this.sessionNotes.clear();
     this.seedDashboardStoredSessions();
+    for (const timer of this.manualIndexingTimers.values()) {
+      clearTimeout(timer);
+    }
+    this.manualIndexingTimers.clear();
+    this.manuals = createManualFixtures();
+    this.manualCounter = 0;
   }
 }

@@ -9,6 +9,14 @@ import type {
   SessionStart,
   SessionSummary,
 } from '../entities/session';
+import type {
+  Manual,
+  ManualDetail,
+  ManualReindexResponse,
+  ManualSearchResponse,
+  ManualUploadInput,
+  ManualUploadResponse,
+} from '../entities/manual';
 import type { User } from '../entities/user';
 import type { WorkOrder, WorkOrderDetail, WorkOrderFilter } from '../entities/work_order';
 import type { WsEvent } from './IWsClient';
@@ -48,6 +56,12 @@ export interface IApiClient {
   getReport(sessionId: string): Promise<MaintenanceReport>;
   getReportPdf(sessionId: string): Promise<Blob>;
   finalizeSession(sessionId: string): Promise<FinalizeSessionResponse>;
+  listManuals(): Promise<{ items: Manual[] }>;
+  getManual(id: string): Promise<ManualDetail>;
+  uploadManual(input: ManualUploadInput): Promise<ManualUploadResponse>;
+  reindexManual(id: string): Promise<ManualReindexResponse>;
+  archiveManual(id: string): Promise<void>;
+  searchManual(id: string, query: string): Promise<ManualSearchResponse>;
   healthCheck(): Promise<{ status: string }>;
   setTokens?(accessToken: string | null, refreshToken?: string | null): void;
   reset?(): void;

@@ -296,6 +296,37 @@ export class HttpApiClient implements IApiClient {
     throw new NotImplementedError('HttpApiClient.finalizeSession — implementar en FE-08+');
   }
 
+  async listManuals(): Promise<{ items: import('@superion/domain').Manual[] }> {
+    throw new NotImplementedError('HttpApiClient.listManuals — implementar en FE-11+');
+  }
+
+  async getManual(_id: string): Promise<import('@superion/domain').ManualDetail> {
+    throw new NotImplementedError('HttpApiClient.getManual — implementar en FE-11+');
+  }
+
+  async uploadManual(
+    _input: import('@superion/domain').ManualUploadInput,
+  ): Promise<import('@superion/domain').ManualUploadResponse> {
+    throw new NotImplementedError('HttpApiClient.uploadManual — implementar en FE-11+');
+  }
+
+  async reindexManual(
+    _id: string,
+  ): Promise<import('@superion/domain').ManualReindexResponse> {
+    throw new NotImplementedError('HttpApiClient.reindexManual — implementar en FE-11+');
+  }
+
+  async archiveManual(_id: string): Promise<void> {
+    throw new NotImplementedError('HttpApiClient.archiveManual — implementar en FE-11+');
+  }
+
+  async searchManual(
+    _id: string,
+    _query: string,
+  ): Promise<import('@superion/domain').ManualSearchResponse> {
+    throw new NotImplementedError('HttpApiClient.searchManual — implementar en FE-11+');
+  }
+
   async healthCheck(): Promise<{ status: string }> {
     return this.request<{ status: string }>('/health');
   }

@@ -1,6 +1,6 @@
 # FE-11 — Desktop · Manuals RAG admin
 
-**Estado:** ⏳
+**Estado:** ✅
 **Depende de:** FE-10
 **Desbloquea:** FE-12
 **PRD features:** D4.1, D4.2, D4.3, D4.4, D4.5, D4.6
@@ -103,14 +103,14 @@ test('manual upload and search', async ({ page }) => {
 
 ## Definition of Done
 
-- [ ] Lista de manuales renderiza con status badges
-- [ ] Drag&drop funciona con PDF
-- [ ] Progress bar muestra indexación en vivo
-- [ ] PDF viewer abre con signed URL
-- [ ] Búsqueda full-text con debounce
-- [ ] Reindex funciona
-- [ ] Archive pide confirmación
-- [ ] E2E Playwright pasa
+- [x] Lista de manuales renderiza con status badges
+- [x] Drag&drop funciona con PDF
+- [x] Progress bar muestra indexación en vivo
+- [x] PDF viewer abre con signed URL
+- [x] Búsqueda full-text con debounce
+- [x] Reindex funciona
+- [x] Archive pide confirmación
+- [x] E2E Playwright pasa
 
 ## Notas
 

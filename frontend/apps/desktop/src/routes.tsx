@@ -8,6 +8,8 @@ const LoginPage = lazy(() => import('./pages/LoginPage'));
 const DashboardPage = lazy(() => import('./pages/DashboardPage'));
 const SessionDetailPage = lazy(() => import('./pages/SessionDetailPage'));
 const ManualsPage = lazy(() => import('./pages/ManualsPage'));
+const ManualUploadPage = lazy(() => import('./pages/ManualUploadPage'));
+const ManualDetailPage = lazy(() => import('./pages/ManualDetailPage'));
 
 function PageFallback() {
   return (
@@ -47,6 +49,22 @@ export const router = createBrowserRouter([
     element: withSuspense(
       <RequireAuth>
         <ManualsPage />
+      </RequireAuth>,
+    ),
+  },
+  {
+    path: '/manuals/upload',
+    element: withSuspense(
+      <RequireAuth>
+        <ManualUploadPage />
+      </RequireAuth>,
+    ),
+  },
+  {
+    path: '/manuals/:id',
+    element: withSuspense(
+      <RequireAuth>
+        <ManualDetailPage />
       </RequireAuth>,
     ),
   },
