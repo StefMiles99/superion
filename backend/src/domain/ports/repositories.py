@@ -7,6 +7,7 @@ from typing import Protocol
 from domain.entities.asset import Asset
 from domain.entities.audit_entry import AuditEntry
 from domain.entities.evidence_photo import EvidencePhoto
+from domain.entities.maintenance_report import MaintenanceReport
 from domain.entities.maintenance_session import MaintenanceSession
 from domain.entities.manual import Manual
 from domain.entities.manual_chunk import ManualChunk
@@ -129,6 +130,18 @@ class IPhotoRepository(Protocol):
     async def get_by_event_id(self, session_id: str, event_id: str) -> EvidencePhoto | None: ...
 
     async def count_rejected_for_step(self, session_id: str, step_index: int) -> int: ...
+
+    async def list_by_session(self, session_id: str) -> list[EvidencePhoto]: ...
+
+
+class IReportRepository(Protocol):
+    """Persistencia de reportes de mantenimiento."""
+
+    async def save(self, report: MaintenanceReport) -> None: ...
+
+    async def get_by_session_id(self, session_id: str) -> MaintenanceReport | None: ...
+
+    async def get_by_id(self, report_id: str) -> MaintenanceReport | None: ...
 
 
 class IManualRepository(Protocol):

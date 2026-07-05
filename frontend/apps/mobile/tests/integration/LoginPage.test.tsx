@@ -29,7 +29,7 @@ describe('LoginPage integration (mobile)', () => {
     await user.click(screen.getByRole('button', { name: /entrar/i }));
 
     await waitFor(() => {
-      expect(screen.getByTestId('work-orders-placeholder')).toBeInTheDocument();
+      expect(screen.getByTestId('work-orders-list')).toBeInTheDocument();
     });
   });
 });

@@ -12,7 +12,7 @@ test.describe('desktop auth', () => {
 
     const session = await page.evaluate(() => localStorage.getItem('superion.auth'));
     expect(session).toContain('accessToken');
-    await expect(page.getByTestId('dashboard-placeholder')).toBeVisible();
+    await expect(page.getByTestId('sessions-table')).toBeVisible();
   });
 
   test('redirects unauthenticated users to login', async ({ page }) => {

@@ -1,3 +1,10 @@
+export {
+  computeEta,
+  formatDuration,
+  formatEtaLabel,
+  type ComputeEtaInput,
+} from './duration';
+
 export type Uuid = string & { readonly __brand: 'Uuid' };
 
 export type IsoDate = string & { readonly __brand: 'IsoDate' };

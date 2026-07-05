@@ -15,6 +15,12 @@ export const AuthSessionSchema = z.object({
   user: UserSchema,
 });
 
+export const WorkOrderAssetSchema = z.object({
+  id: z.string().uuid(),
+  tag: z.string().min(1),
+  name: z.string().min(1),
+});
+
 export const WorkOrderSchema = z.object({
   id: z.string().uuid(),
   code: z.string().min(1),
@@ -22,6 +28,7 @@ export const WorkOrderSchema = z.object({
   priority: z.enum(['low', 'med', 'high']),
   procedureName: z.string().min(1),
   estimatedMinutes: z.number().int().positive(),
+  asset: WorkOrderAssetSchema,
 });
 
 export type UserInput = z.infer<typeof UserSchema>;

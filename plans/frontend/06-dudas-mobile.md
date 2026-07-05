@@ -1,6 +1,6 @@
 # FE-06 — Mobile · Dudas (consultas)
 
-**Estado:** ⏳
+**Estado:** ✅
 **Depende de:** FE-05
 **Desbloquea:** —
 **PRD features:** M4.8, M5.2

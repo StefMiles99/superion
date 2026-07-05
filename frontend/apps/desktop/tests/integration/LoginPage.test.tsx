@@ -29,7 +29,7 @@ describe('LoginPage integration (desktop)', () => {
     await user.click(screen.getByRole('button', { name: /entrar/i }));
 
     await waitFor(() => {
-      expect(screen.getByTestId('dashboard-placeholder')).toBeInTheDocument();
+      expect(screen.getByTestId('sessions-table')).toBeInTheDocument();
     });
   });
 });

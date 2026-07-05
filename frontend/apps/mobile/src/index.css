@@ -7,3 +7,48 @@
 #root {
   min-height: 100vh;
 }
+
+@keyframes voice-wave {
+  0%,
+  100% {
+    transform: scaleY(0.45);
+  }
+  50% {
+    transform: scaleY(1);
+  }
+}
+
+.voice-wave-bar {
+  animation: voice-wave 1s ease-in-out infinite;
+  transform-origin: bottom;
+}
+
+@keyframes slide-up {
+  from {
+    transform: translateY(100%);
+  }
+  to {
+    transform: translateY(0);
+  }
+}
+
+@keyframes slide-in-right {
+  from {
+    transform: translateX(100%);
+  }
+  to {
+    transform: translateX(0);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .voice-wave-bar {
+    animation: none;
+    transform: scaleY(0.75);
+  }
+
+  .motion-safe\:animate-\[slide-up_250ms_ease-out\],
+  .motion-safe\:animate-\[slide-in-right_250ms_ease-out\] {
+    animation: none !important;
+  }
+}

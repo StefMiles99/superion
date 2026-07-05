@@ -6,13 +6,13 @@ from fastapi import APIRouter, Depends, Query, Request, Response, status
 
 from application.dto.event import AppendEventInput
 from application.use_cases.events.list_since import ListEventsSinceUseCase
-from application.use_cases.sessions.finalize import FinalizeSessionUseCase
+from application.use_cases.reports.finalize import FinalizeReportUseCase
 from application.use_cases.sessions.get import GetSessionUseCase
 from application.use_cases.sessions.pause import PauseSessionUseCase
 from application.use_cases.sessions.resume import ResumeSessionUseCase
 from domain.entities.user import User
 from infrastructure.factories import (
-    get_finalize_session_use_case,
+    get_finalize_report_use_case,
     get_list_events_use_case,
     get_pause_session_use_case,
     get_post_session_event_use_case,
@@ -98,7 +98,7 @@ async def resume_session(
 async def finalize_session(
     session_id: str,
     user: User = Depends(get_current_user),
-    use_case: FinalizeSessionUseCase = Depends(get_finalize_session_use_case),
+    use_case: FinalizeReportUseCase = Depends(get_finalize_report_use_case),
 ) -> dict[str, object]:
     result = await use_case.execute(session_id=session_id, current_user=user)
     return result.model_dump()

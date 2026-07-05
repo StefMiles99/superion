@@ -150,3 +150,9 @@ class ISignatureValidator(Protocol):
     """Validación HMAC de webhooks."""
 
     def validate(self, *, payload: bytes, signature_header: str | None) -> None: ...
+
+
+class IReportRenderer(Protocol):
+    """Genera bytes PDF y hash SHA256 desde content_json."""
+
+    def render(self, content_json: dict[str, object]) -> tuple[bytes, str]: ...

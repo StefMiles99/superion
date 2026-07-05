@@ -75,6 +75,14 @@ class InMemoryPhotoRepository:
                     count += 1
             return count
 
+    async def list_by_session(self, session_id: str) -> list[EvidencePhoto]:
+        async with self._lock:
+            return [
+                photo
+                for photo in self._photos.values()
+                if photo.session_id == session_id
+            ]
+
     async def reset(self) -> None:
         async with self._lock:
             self._photos.clear()

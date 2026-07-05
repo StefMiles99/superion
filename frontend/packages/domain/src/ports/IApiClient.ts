@@ -1,6 +1,16 @@
+import type { AssistantAnswer } from '../entities/assistant';
 import type { LoginInput, LoginResponse, RefreshInput } from '../entities/auth';
+import type { PhotoUploadResponse } from '../entities/photo';
+import type { FinalizeSessionResponse, MaintenanceReport } from '../entities/report';
+import type {
+  Session,
+  SessionEventInput,
+  SessionEventResponse,
+  SessionStart,
+  SessionSummary,
+} from '../entities/session';
 import type { User } from '../entities/user';
-import type { WorkOrder } from '../entities/work_order';
+import type { WorkOrder, WorkOrderDetail, WorkOrderFilter } from '../entities/work_order';
 
 export interface Paginated<T> {
   items: T[];
@@ -12,7 +22,29 @@ export interface IApiClient {
   refresh(input: RefreshInput): Promise<LoginResponse>;
   logout(): Promise<void>;
   me(): Promise<User>;
-  listWorkOrders(): Promise<Paginated<WorkOrder>>;
+  listWorkOrders(filter?: WorkOrderFilter): Promise<Paginated<WorkOrder>>;
+  listActiveSessions(plantId: string): Promise<SessionSummary[]>;
+  getWorkOrder(id: string): Promise<WorkOrderDetail>;
+  addSessionNote?(sessionId: string, note: string): Promise<void>;
+  startSession(workOrderId: string): Promise<SessionStart>;
+  getSession(id: string): Promise<Session>;
+  postSessionEvent(
+    sessionId: string,
+    event: SessionEventInput,
+  ): Promise<SessionEventResponse>;
+  pauseSession(sessionId: string): Promise<void>;
+  resumeSession(sessionId: string): Promise<void>;
+  askAssistant(sessionId: string, question: string): Promise<AssistantAnswer>;
+  uploadPhoto(
+    sessionId: string,
+    file: Blob,
+    stepIndex: number,
+    criteria?: string,
+    eventId?: string,
+  ): Promise<PhotoUploadResponse>;
+  getReport(sessionId: string): Promise<MaintenanceReport>;
+  getReportPdf(sessionId: string): Promise<Blob>;
+  finalizeSession(sessionId: string): Promise<FinalizeSessionResponse>;
   healthCheck(): Promise<{ status: string }>;
   setTokens?(accessToken: string | null, refreshToken?: string | null): void;
   reset?(): void;

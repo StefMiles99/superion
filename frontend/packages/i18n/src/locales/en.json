@@ -15,7 +15,40 @@
   },
   "workOrders": {
     "title": "Work orders",
-    "placeholder": "Work orders list (coming soon)"
+    "placeholder": "Work orders list (coming soon)",
+    "errorLoading": "Could not load work orders.",
+    "retry": "Retry",
+    "pullToRefresh": "Release to refresh",
+    "refreshing": "Refreshing…",
+    "empty": {
+      "title": "No results",
+      "description": "No pending work orders match the current filters.",
+      "action": "Clear filters"
+    },
+    "filters": {
+      "all": "All",
+      "pending": "Pending",
+      "inProgress": "In progress",
+      "completed": "Completed",
+      "searchPlaceholder": "Search by code or tag",
+      "statusLabel": "Filter by status",
+      "priorityLabel": "Filter by priority"
+    },
+    "status": {
+      "pending": "Pending",
+      "in_progress": "In progress",
+      "paused": "Paused",
+      "completed": "Completed",
+      "cancelled": "Cancelled"
+    },
+    "priority": {
+      "low": "Low",
+      "med": "Medium",
+      "high": "High"
+    },
+    "card": {
+      "estimatedMinutes": "{{minutes}} min estimated"
+    }
   },
   "dashboard": {
     "title": "Supervisor dashboard",
