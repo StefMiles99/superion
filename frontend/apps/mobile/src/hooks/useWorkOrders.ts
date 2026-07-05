@@ -1,34 +1,50 @@
-import { getApiClient } from '@superion/api-client';
-import type { WorkOrderFilter } from '@superion/domain';
-import { useInfiniteQuery } from '@tanstack/react-query';
+import type { ProcedureTemplate } from "@superion/domain";
+import { useMutation, useQuery } from "@tanstack/react-query";
+import { useNavigate } from "react-router-dom";
+import { useServices } from "@/services/context";
 
-const STALE_TIME_MS = 30_000;
-const PAGE_LIMIT = 10;
-
-function buildQueryKey(filter: WorkOrderFilter) {
-  return [
-    'workOrders',
-    {
-      status: filter.status ?? null,
-      priority: filter.priority ?? null,
-      q: filter.q ?? null,
-    },
-  ] as const;
+export function useWorkOrders() {
+  const { api } = useServices();
+  return useQuery({
+    queryKey: ["work-orders"],
+    queryFn: () => api.listWorkOrders(),
+  });
 }
 
-export function useWorkOrders(filter: WorkOrderFilter) {
-  return useInfiniteQuery({
-    queryKey: buildQueryKey(filter),
-    queryFn: async ({ pageParam }) => {
-      const api = getApiClient();
-      return api.listWorkOrders({
-        ...filter,
-        ...(pageParam ? { cursor: pageParam } : {}),
-        limit: PAGE_LIMIT,
-      });
+export function useWorkOrder(id: string) {
+  const { api } = useServices();
+  return useQuery({
+    queryKey: ["work-order", id],
+    queryFn: () => api.getWorkOrder(id),
+    enabled: Boolean(id),
+  });
+}
+
+const TEMPLATE_KEY = (sessionId: string) => `superion.template.${sessionId}`;
+
+export function stashTemplate(sessionId: string, template: ProcedureTemplate): void {
+  sessionStorage.setItem(TEMPLATE_KEY(sessionId), JSON.stringify(template));
+}
+
+export function readTemplate(sessionId: string): ProcedureTemplate | null {
+  const raw = sessionStorage.getItem(TEMPLATE_KEY(sessionId));
+  if (!raw) return null;
+  try {
+    return JSON.parse(raw) as ProcedureTemplate;
+  } catch {
+    return null;
+  }
+}
+
+export function useStartSession() {
+  const { api } = useServices();
+  const navigate = useNavigate();
+
+  return useMutation({
+    mutationFn: (workOrderId: string) => api.startSession(workOrderId),
+    onSuccess: (result) => {
+      stashTemplate(result.session_id, result.procedure_template);
+      navigate(`/session/${result.session_id}`);
     },
-    initialPageParam: undefined as string | undefined,
-    getNextPageParam: (lastPage) => lastPage.nextCursor ?? undefined,
-    staleTime: STALE_TIME_MS,
   });
 }

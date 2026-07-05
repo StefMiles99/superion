@@ -85,6 +85,8 @@ _settings: Settings | None = None
 _rate_limiter: InMemoryRateLimiter | NoOpRateLimiter | None = None
 _rate_limiter_key: tuple[bool, int, str] | None = None
 _build_live_started = False
+_redis_event_bus: object | None = None
+_openrouter_client: object | None = None
 
 
 def get_settings() -> Settings:
@@ -97,18 +99,22 @@ def get_settings() -> Settings:
 
 def reset_settings() -> None:
     """Resetea singleton — útil en tests."""
-    global _settings, _rate_limiter, _rate_limiter_key
+    global _settings, _rate_limiter, _rate_limiter_key, _redis_event_bus, _openrouter_client
     _settings = None
     _rate_limiter = None
     _rate_limiter_key = None
+    _redis_event_bus = None
+    _openrouter_client = None
 
 
 def set_settings(settings: Settings) -> None:
     """Inyecta settings — usado por create_app en tests."""
-    global _settings, _rate_limiter, _rate_limiter_key
+    global _settings, _rate_limiter, _rate_limiter_key, _redis_event_bus, _openrouter_client
     _settings = settings
     _rate_limiter = None
     _rate_limiter_key = None
+    _redis_event_bus = None
+    _openrouter_client = None
 
 
 def get_clock(settings: Settings | None = None) -> IClock:
@@ -124,8 +130,13 @@ def get_user_repository(settings: Settings | None = None) -> IUserRepository:
     if cfg.AUTH == "memory":
         return InMemoryUserRepository.shared()
     if cfg.AUTH == "supabase_auth":
-        return SupabaseUserRepository()
+        return SupabaseUserRepository(dsn=cfg.DATABASE_URL)
     raise ValueError(f"AUTH={cfg.AUTH} no soportado")
+
+
+def _supabase_dsn(settings: Settings | None = None) -> str:
+    cfg = settings or get_settings()
+    return cfg.DATABASE_URL
 
 
 def get_password_hasher(settings: Settings | None = None) -> IPasswordHasher:
@@ -153,7 +164,7 @@ def get_work_order_repository(settings: Settings | None = None) -> IWorkOrderRep
     if cfg.PERSISTENCE == "memory":
         return InMemoryWorkOrderRepository.shared()
     if cfg.PERSISTENCE == "supabase":
-        return SupabaseWorkOrderRepository()
+        return SupabaseWorkOrderRepository(dsn=_supabase_dsn(cfg))
     raise ValueError(f"PERSISTENCE={cfg.PERSISTENCE} no soportado")
 
 
@@ -164,7 +175,7 @@ def get_procedure_template_repository(
     if cfg.PERSISTENCE == "memory":
         return InMemoryProcedureTemplateRepository.shared()
     if cfg.PERSISTENCE == "supabase":
-        return SupabaseProcedureTemplateRepository()
+        return SupabaseProcedureTemplateRepository(dsn=_supabase_dsn(cfg))
     raise ValueError(f"PERSISTENCE={cfg.PERSISTENCE} no soportado")
 
 
@@ -173,7 +184,7 @@ def get_asset_repository(settings: Settings | None = None) -> IAssetRepository:
     if cfg.PERSISTENCE == "memory":
         return InMemoryAssetRepository.shared()
     if cfg.PERSISTENCE == "supabase":
-        return SupabaseAssetRepository()
+        return SupabaseAssetRepository(dsn=_supabase_dsn(cfg))
     raise ValueError(f"PERSISTENCE={cfg.PERSISTENCE} no soportado")
 
 
@@ -182,7 +193,7 @@ def get_session_repository(settings: Settings | None = None) -> ISessionReposito
     if cfg.PERSISTENCE == "memory":
         return InMemorySessionRepository.shared()
     if cfg.PERSISTENCE == "supabase":
-        return SupabaseSessionRepository()
+        return SupabaseSessionRepository(dsn=_supabase_dsn(cfg))
     raise ValueError(f"PERSISTENCE={cfg.PERSISTENCE} no soportado")
 
 
@@ -191,14 +202,31 @@ def get_session_event_repository(settings: Settings | None = None) -> ISessionEv
     if cfg.PERSISTENCE == "memory":
         return InMemorySessionEventRepository.shared()
     if cfg.PERSISTENCE == "supabase":
-        return SupabaseSessionEventRepository()
+        return SupabaseSessionEventRepository(dsn=_supabase_dsn(cfg))
     raise ValueError(f"PERSISTENCE={cfg.PERSISTENCE} no soportado")
+
+
+def _openrouter(settings: Settings | None = None):
+    from infrastructure.external.openrouter.client import OpenRouterClient
+
+    global _openrouter_client
+    cfg = settings or get_settings()
+    if _openrouter_client is None:
+        _openrouter_client = OpenRouterClient(api_key=cfg.OPENROUTER_API_KEY)
+    return _openrouter_client
 
 
 def get_event_bus(settings: Settings | None = None) -> IEventBus:
     cfg = settings or get_settings()
     if cfg.EVENTBUS == "memory":
         return InMemoryEventBus.shared()
+    if cfg.EVENTBUS == "redis":
+        global _redis_event_bus
+        if _redis_event_bus is None:
+            from infrastructure.realtime.redis_event_bus import RedisEventBus
+
+            _redis_event_bus = RedisEventBus(redis_url=cfg.REDIS_URL)
+        return _redis_event_bus  # type: ignore[return-value]
     raise ValueError(f"EVENTBUS={cfg.EVENTBUS} no soportado")
 
 
@@ -207,7 +235,11 @@ def get_object_storage(settings: Settings | None = None) -> IObjectStorage:
     if cfg.STORAGE == "memory":
         return InMemoryObjectStorage.shared(base_url=cfg.API_BASE_URL)
     if cfg.STORAGE == "supabase":
-        return SupabaseObjectStorage()
+        return SupabaseObjectStorage(
+            supabase_url=cfg.SUPABASE_URL,
+            service_role_key=cfg.SUPABASE_SERVICE_ROLE_KEY,
+            bucket=cfg.SUPABASE_STORAGE_BUCKET,
+        )
     raise ValueError(f"STORAGE={cfg.STORAGE} no soportado")
 
 
@@ -216,7 +248,7 @@ def get_photo_repository(settings: Settings | None = None) -> IPhotoRepository:
     if cfg.PERSISTENCE == "memory":
         return InMemoryPhotoRepository.shared()
     if cfg.PERSISTENCE == "supabase":
-        return SupabasePhotoRepository()
+        return SupabasePhotoRepository(dsn=_supabase_dsn(cfg))
     raise ValueError(f"PERSISTENCE={cfg.PERSISTENCE} no soportado")
 
 
@@ -224,6 +256,13 @@ def get_photo_validator(settings: Settings | None = None) -> IPhotoValidator:
     cfg = settings or get_settings()
     if cfg.PHOTO_VALIDATOR == "mock":
         return MockPhotoValidator()
+    if cfg.PHOTO_VALIDATOR == "openrouter_vlm":
+        from infrastructure.external.openrouter.vlm_validator import OpenRouterPhotoValidator
+
+        return OpenRouterPhotoValidator(
+            client=_openrouter(cfg),
+            model=cfg.OPENROUTER_VLM_MODEL,
+        )
     raise ValueError(f"PHOTO_VALIDATOR={cfg.PHOTO_VALIDATOR} no soportado")
 
 
@@ -232,7 +271,7 @@ def get_report_repository(settings: Settings | None = None) -> IReportRepository
     if cfg.PERSISTENCE == "memory":
         return InMemoryReportRepository.shared()
     if cfg.PERSISTENCE == "supabase":
-        return SupabaseReportRepository()
+        return SupabaseReportRepository(dsn=_supabase_dsn(cfg))
     raise ValueError(f"PERSISTENCE={cfg.PERSISTENCE} no soportado")
 
 
@@ -240,6 +279,10 @@ def get_report_renderer(settings: Settings | None = None) -> IReportRenderer:
     cfg = settings or get_settings()
     if cfg.PDF == "mock":
         return MockReportRenderer()
+    if cfg.PDF == "weasyprint":
+        from infrastructure.services.weasyprint_renderer import WeasyPrintReportRenderer
+
+        return WeasyPrintReportRenderer()
     raise ValueError(f"PDF={cfg.PDF} no soportado")
 
 
@@ -520,7 +563,14 @@ def get_get_photo_use_case():
 
 
 def get_pdf_extractor(settings: Settings | None = None) -> IPdfExtractor:
-    return MockPdfExtractor()
+    cfg = settings or get_settings()
+    if cfg.PDF_EXTRACTOR == "mock":
+        return MockPdfExtractor()
+    if cfg.PDF_EXTRACTOR == "pypdf":
+        from infrastructure.services.pypdf_extractor import PypdfExtractor
+
+        return PypdfExtractor()
+    raise ValueError(f"PDF_EXTRACTOR={cfg.PDF_EXTRACTOR} no soportado")
 
 
 def get_chunker_service(settings: Settings | None = None) -> IChunkerService:
@@ -535,6 +585,14 @@ def get_embedding_service(settings: Settings | None = None) -> IEmbeddingService
     cfg = settings or get_settings()
     if cfg.EMBEDDING == "mock":
         return MockEmbeddingService(dimensions=cfg.EMBEDDING_DIM)
+    if cfg.EMBEDDING == "openrouter":
+        from infrastructure.external.openrouter.embedding_service import OpenRouterEmbeddingService
+
+        return OpenRouterEmbeddingService(
+            client=_openrouter(cfg),
+            model=cfg.OPENROUTER_EMBEDDING_MODEL,
+            dimensions=cfg.EMBEDDING_DIM,
+        )
     raise ValueError(f"EMBEDDING={cfg.EMBEDDING} no soportado")
 
 
@@ -542,6 +600,13 @@ def get_reranker_service(settings: Settings | None = None) -> IRerankerService:
     cfg = settings or get_settings()
     if cfg.RERANKER == "mock":
         return MockReranker()
+    if cfg.RERANKER == "openrouter":
+        from infrastructure.external.openrouter.reranker import OpenRouterReranker
+
+        return OpenRouterReranker(
+            client=_openrouter(cfg),
+            model=cfg.OPENROUTER_RERANKER_MODEL,
+        )
     raise ValueError(f"RERANKER={cfg.RERANKER} no soportado")
 
 
@@ -550,7 +615,7 @@ def get_manual_repository(settings: Settings | None = None) -> IManualRepository
     if cfg.PERSISTENCE == "memory":
         return InMemoryManualRepository.shared()
     if cfg.PERSISTENCE == "supabase":
-        return SupabaseManualRepository()
+        return SupabaseManualRepository(dsn=_supabase_dsn(cfg))
     raise ValueError(f"PERSISTENCE={cfg.PERSISTENCE} no soportado")
 
 
@@ -559,7 +624,7 @@ def get_manual_chunk_repository(settings: Settings | None = None) -> IManualChun
     if cfg.PERSISTENCE == "memory":
         return InMemoryManualChunkRepository.shared()
     if cfg.PERSISTENCE == "supabase":
-        return SupabaseManualChunkRepository()
+        return SupabaseManualChunkRepository(dsn=_supabase_dsn(cfg))
     raise ValueError(f"PERSISTENCE={cfg.PERSISTENCE} no soportado")
 
 
@@ -675,6 +740,13 @@ def get_intent_classifier():
     cfg = get_settings()
     if cfg.INTENT_CLASSIFIER == "mock":
         return MockIntentClassifier()
+    if cfg.INTENT_CLASSIFIER == "llm":
+        from infrastructure.external.openrouter.intent_classifier import OpenRouterIntentClassifier
+
+        return OpenRouterIntentClassifier(
+            client=_openrouter(cfg),
+            model=cfg.OPENROUTER_LLM_MODEL,
+        )
     raise ValueError(f"INTENT_CLASSIFIER={cfg.INTENT_CLASSIFIER} no soportado")
 
 
@@ -743,12 +815,32 @@ def get_execute_tool_use_case():
     )
 
 
+def get_record_utterance_use_case():
+    from application.use_cases.voice.record_utterance import RecordUtteranceUseCase
+
+    return RecordUtteranceUseCase(
+        sessions=get_session_repository(),
+        append_events=get_append_event_use_case(),
+    )
+
+
+def get_record_observation_use_case():
+    from application.use_cases.voice.record_observation import RecordObservationUseCase
+
+    return RecordObservationUseCase(
+        sessions=get_session_repository(),
+        append_events=get_append_event_use_case(),
+    )
+
+
 def get_classify_and_route_use_case():
     from application.use_cases.voice.classify_and_route import ClassifyAndRouteUseCase
 
     return ClassifyAndRouteUseCase(
         sessions=get_session_repository(),
         classifier=get_intent_classifier(),
+        record_utterance=get_record_utterance_use_case(),
+        record_observation=get_record_observation_use_case(),
         execute_tool=get_execute_tool_use_case(),
         add_measurement=get_tool_add_measurement_use_case(),
     )
@@ -760,6 +852,13 @@ def get_langgraph_client():
     cfg = get_settings()
     if cfg.LANGGRAPH == "mock":
         return MockLangGraphClient.shared(execute_tool=get_execute_tool_use_case())
+    if cfg.LANGGRAPH == "langgraph":
+        from infrastructure.realtime.http_langgraph_client import HttpLangGraphClient
+
+        return HttpLangGraphClient(
+            base_url=cfg.LANGGRAPH_URL,
+            execute_tool=get_execute_tool_use_case(),
+        )
     raise ValueError(f"LANGGRAPH={cfg.LANGGRAPH} no soportado")
 
 
@@ -772,6 +871,7 @@ def get_handle_webhook_use_case():
         sessions=get_session_repository(cfg),
         users=get_user_repository(cfg),
         classify_and_route=get_classify_and_route_use_case(),
+        record_utterance=get_record_utterance_use_case(),
         pause_session=get_pause_session_use_case(),
         langgraph=get_langgraph_client(),
     )
@@ -782,7 +882,7 @@ def get_audit_log_repository(settings: Settings | None = None) -> IAuditLogRepos
     if cfg.AUDIT_LOG == "memory":
         return InMemoryAuditLogRepository.shared()
     if cfg.AUDIT_LOG == "supabase":
-        return SupabaseAuditLogRepository()
+        return SupabaseAuditLogRepository(dsn=_supabase_dsn(cfg))
     raise ValueError(f"AUDIT_LOG={cfg.AUDIT_LOG} no soportado")
 
 

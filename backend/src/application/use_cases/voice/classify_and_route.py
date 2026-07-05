@@ -5,6 +5,8 @@ from __future__ import annotations
 from uuid import uuid4
 
 from application.use_cases.voice.execute_tool import ExecuteToolUseCase
+from application.use_cases.voice.record_observation import RecordObservationUseCase
+from application.use_cases.voice.record_utterance import RecordUtteranceUseCase
 from application.use_cases.voice.tool_add_measurement import ToolAddMeasurementUseCase
 from domain.entities.user import User
 from domain.entities.voice_command import VoiceCommand
@@ -14,18 +16,22 @@ from domain.ports.services import IIntentClassifier
 
 
 class ClassifyAndRouteUseCase:
-    """Clasifica utterance y enruta a tool o respuesta directa."""
+    """Clasifica utterance, lo persiste y enruta a tool o respuesta directa."""
 
     def __init__(
         self,
         *,
         sessions: ISessionRepository,
         classifier: IIntentClassifier,
+        record_utterance: RecordUtteranceUseCase,
+        record_observation: RecordObservationUseCase,
         execute_tool: ExecuteToolUseCase,
         add_measurement: ToolAddMeasurementUseCase,
     ) -> None:
         self._sessions = sessions
         self._classifier = classifier
+        self._record_utterance = record_utterance
+        self._record_observation = record_observation
         self._execute_tool = execute_tool
         self._add_measurement = add_measurement
 
@@ -54,6 +60,15 @@ class ClassifyAndRouteUseCase:
             text=text,
             intent=intent,
             confidence=confidence,
+            audio_ref=audio_ref,
+        )
+
+        await self._record_utterance.execute(
+            session_id=session_id,
+            text=text,
+            current_user=current_user,
+            speaker="technician",
+            intent=intent,
             audio_ref=audio_ref,
         )
 
@@ -116,6 +131,24 @@ class ClassifyAndRouteUseCase:
                 arguments={"name": name, "value": value, "unit": unit},
                 current_user=current_user,
                 call_id=call_id,
+            )
+            return command
+
+        if intent == "finding":
+            await self._execute_tool.execute(
+                tool_name="add_finding",
+                session_id=session_id,
+                arguments={"text": text, "severity": "med"},
+                current_user=current_user,
+                call_id=call_id,
+            )
+            return command
+
+        if intent == "narration":
+            await self._record_observation.execute(
+                session_id=session_id,
+                text=text,
+                current_user=current_user,
             )
             return command
 

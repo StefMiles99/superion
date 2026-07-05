@@ -59,8 +59,8 @@ async def test_work_orders_sessions_flow(client: AsyncClient) -> None:
     assert session_body["current_step_index"] == 0
 
     duplicate = await client.post(f"/v1/work-orders/{work_order_id}/start", headers=headers)
-    assert duplicate.status_code == 409
-    assert duplicate.json()["error"]["code"] == "WORK_ORDER_ALREADY_STARTED"
+    assert duplicate.status_code == 201
+    assert duplicate.json()["session_id"] == session_id
 
     foreign = await client.get("/v1/work-orders/wo-maria-1", headers=headers)
     assert foreign.status_code == 404

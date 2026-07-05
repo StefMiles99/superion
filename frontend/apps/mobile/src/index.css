@@ -1,54 +1,52 @@
-@import '@superion/ui/styles.css';
+@import "tailwindcss";
 
-@tailwind base;
-@tailwind components;
-@tailwind utilities;
+/* El monorepo: escanea también las clases del paquete de UI. */
+@source "../../../packages/ui/src/**/*.{ts,tsx}";
 
+:root {
+  color-scheme: dark;
+}
+
+html,
+body,
 #root {
-  min-height: 100vh;
+  height: 100%;
 }
 
-@keyframes voice-wave {
-  0%,
+body {
+  margin: 0;
+  background: #020617;
+  font-family: system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+  -webkit-tap-highlight-color: transparent;
+  overscroll-behavior: none;
+}
+
+@keyframes pulse-ring {
+  0% {
+    transform: scale(0.85);
+    opacity: 0.7;
+  }
   100% {
-    transform: scaleY(0.45);
-  }
-  50% {
-    transform: scaleY(1);
-  }
-}
-
-.voice-wave-bar {
-  animation: voice-wave 1s ease-in-out infinite;
-  transform-origin: bottom;
-}
-
-@keyframes slide-up {
-  from {
-    transform: translateY(100%);
-  }
-  to {
-    transform: translateY(0);
+    transform: scale(1.6);
+    opacity: 0;
   }
 }
 
 @keyframes slide-in-right {
   from {
-    transform: translateX(100%);
+    transform: translateX(120%);
+    opacity: 0;
   }
   to {
     transform: translateX(0);
+    opacity: 1;
   }
 }
 
-@media (prefers-reduced-motion: reduce) {
-  .voice-wave-bar {
-    animation: none;
-    transform: scaleY(0.75);
-  }
+.animate-pulse-ring {
+  animation: pulse-ring 1.6s ease-out infinite;
+}
 
-  .motion-safe\:animate-\[slide-up_250ms_ease-out\],
-  .motion-safe\:animate-\[slide-in-right_250ms_ease-out\] {
-    animation: none !important;
-  }
+.animate-slide-in-right {
+  animation: slide-in-right 0.28s ease-out both;
 }

@@ -16,18 +16,27 @@ class ReadinessCheck:
         all_ok = True
 
         if self._settings.AUTH == "supabase_auth":
-            ok = bool(self._settings.SUPABASE_URL)
-            checks["auth"] = "ok" if ok else "missing SUPABASE_URL"
+            ok = bool(self._settings.DATABASE_URL)
+            checks["auth"] = "ok" if ok else "missing DATABASE_URL"
             all_ok = all_ok and ok
 
         if self._settings.PERSISTENCE == "supabase":
-            ok = bool(self._settings.SUPABASE_URL and self._settings.SUPABASE_SERVICE_ROLE_KEY)
-            checks["persistence"] = "ok" if ok else "missing Supabase config"
+            ok = bool(self._settings.DATABASE_URL)
+            checks["persistence"] = "ok" if ok else "missing DATABASE_URL"
+            all_ok = all_ok and ok
+
+        if self._settings.AUDIT_LOG == "supabase":
+            ok = bool(self._settings.DATABASE_URL)
+            checks["audit_log"] = "ok" if ok else "missing DATABASE_URL"
             all_ok = all_ok and ok
 
         if self._settings.STORAGE == "supabase":
-            ok = bool(self._settings.SUPABASE_URL)
-            checks["storage"] = "ok" if ok else "missing SUPABASE_URL"
+            ok = bool(
+                self._settings.SUPABASE_URL and self._settings.SUPABASE_SERVICE_ROLE_KEY
+            )
+            checks["storage"] = (
+                "ok" if ok else "missing SUPABASE_URL or SUPABASE_SERVICE_ROLE_KEY"
+            )
             all_ok = all_ok and ok
 
         if self._settings.LLM == "openrouter":
@@ -39,6 +48,29 @@ class ReadinessCheck:
             ok = bool(self._settings.OPENROUTER_API_KEY)
             checks["embedding"] = "ok" if ok else "missing OPENROUTER_API_KEY"
             all_ok = all_ok and ok
+
+        if self._settings.RERANKER == "openrouter":
+            ok = bool(self._settings.OPENROUTER_API_KEY)
+            checks["reranker"] = "ok" if ok else "missing OPENROUTER_API_KEY"
+            all_ok = all_ok and ok
+
+        if self._settings.PHOTO_VALIDATOR == "openrouter_vlm":
+            ok = bool(self._settings.OPENROUTER_API_KEY)
+            checks["photo_validator"] = "ok" if ok else "missing OPENROUTER_API_KEY"
+            all_ok = all_ok and ok
+
+        if self._settings.INTENT_CLASSIFIER == "llm":
+            ok = bool(self._settings.OPENROUTER_API_KEY)
+            checks["intent_classifier"] = "ok" if ok else "missing OPENROUTER_API_KEY"
+            all_ok = all_ok and ok
+
+        if self._settings.EVENTBUS == "redis":
+            ok = bool(self._settings.REDIS_URL)
+            checks["eventbus"] = "ok" if ok else "missing REDIS_URL"
+            all_ok = all_ok and ok
+
+        if self._settings.PDF == "weasyprint":
+            checks["pdf"] = "ok"
 
         if self._settings.VOICE == "elevenlabs":
             ok = bool(self._settings.ELEVENLABS_API_KEY)

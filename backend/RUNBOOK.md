@@ -24,13 +24,49 @@ SECURITY_HEADERS=true
 
 Cuando un adapter apunta a servicio real, `/ready` exige credenciales:
 
-- `AUTH=supabase_auth` → `SUPABASE_URL`
-- `PERSISTENCE=supabase` → `SUPABASE_URL` + `SUPABASE_SERVICE_ROLE_KEY`
+- `AUTH=supabase_auth` → `DATABASE_URL` (tabla `app_user`)
+- `PERSISTENCE=supabase` → `DATABASE_URL`
+- `AUDIT_LOG=supabase` → `DATABASE_URL`
+- `STORAGE=supabase` → `SUPABASE_URL` + `SUPABASE_SERVICE_ROLE_KEY`
 - `LLM=openrouter` / `EMBEDDING=openrouter` → `OPENROUTER_API_KEY`
 - `VOICE=elevenlabs` → `ELEVENLABS_API_KEY`
 - `LANGGRAPH=langgraph` → `LANGGRAPH_URL`
 
 Con defaults `memory`/`mock`, `/ready` responde 200 sin deps externas.
+
+## Postgres / Supabase (persistencia real)
+
+Ver también `backend/.env.cloudrun.example` para demo Cloud Run sin mock.
+
+1. Configura en `.env`:
+
+```bash
+PERSISTENCE=supabase
+DATABASE_URL=postgresql://postgres:postgres@localhost:5432/postgres
+# Opcional — auth contra la misma DB:
+AUTH=supabase_auth
+AUDIT_LOG=supabase
+# Opcional — blobs en Supabase Storage:
+STORAGE=supabase
+SUPABASE_URL=https://YOUR_PROJECT.supabase.co
+SUPABASE_SERVICE_ROLE_KEY=your-service-role-key
+SUPABASE_STORAGE_BUCKET=superion
+```
+
+2. Migra y siembra fixtures (usuarios, activos, OTs, plantillas):
+
+```bash
+cd backend
+PYTHONPATH=src python -m interface.cli.seed
+# o con DSN explícito:
+PYTHONPATH=src python -m interface.cli.seed --dsn "$DATABASE_URL"
+```
+
+3. Arranca la API y verifica readiness:
+
+```bash
+curl -s http://localhost:8000/ready | jq .
+```
 
 ## Diagnóstico rápido
 
@@ -96,3 +132,25 @@ Logs JSON estructurados con `correlation_id` (header `X-Correlation-Id`).
 Spans ligeros vía `infrastructure.observability.tracing.trace_span`.
 
 Refs: `plans/backend/08-observability-hardening.md`, PRD-backend.md F14–F16.
+
+## Cloud Run (demo producción)
+
+```bash
+# 1. Supabase: ejecutar 0001_init.sql + seed
+cp backend/.env.cloudrun.example backend/.env.cloudrun
+# completar DATABASE_URL, keys, Redis (Upstash), etc.
+
+PYTHONPATH=src python -m interface.cli.seed
+
+# 2. Secrets GCP (opcional pero recomendado)
+./scripts/setup-gcp-secrets.sh YOUR_GCP_PROJECT
+
+# 3. Deploy
+./scripts/deploy-cloud-run.sh YOUR_GCP_PROJECT us-central1
+
+# 4. Post-deploy
+curl -s https://YOUR-BACKEND.run.app/ready | jq .
+API_BASE_URL=https://YOUR-BACKEND.run.app python -m interface.cli.elevenlabs deploy
+```
+
+Variables clave (ninguna en mock): ver `backend/.env.cloudrun.example`.

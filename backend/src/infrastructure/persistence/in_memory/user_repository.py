@@ -57,6 +57,14 @@ class InMemoryUserRepository:
                 plant_id="plant-1",
             ),
             User(
+                id="admin-ana",
+                email="ana@planta.com",
+                password_hash=password_hash,
+                full_name="Ana Gómez",
+                role=Role.RAG_ADMIN,
+                plant_id="plant-1",
+            ),
+            User(
                 id="admin-1",
                 email="admin@planta.com",
                 password_hash=password_hash,

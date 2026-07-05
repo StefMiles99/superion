@@ -100,6 +100,26 @@ async def test_query_manual_tool_with_auth(client: AsyncClient) -> None:
     assert body["result"]["citations"]
 
 
+async def test_query_manual_infers_asset_from_session(client: AsyncClient) -> None:
+    """asset_id opcional: se resuelve desde la OT de la sesión."""
+    tech = await _tech_headers(client)
+    admin = await _admin_headers(client)
+    await _upload_manual(client, admin)
+    session_id = await _start_session(client, tech)
+
+    response = await client.post(
+        "/v1/elevenlabs/tools/query_manual",
+        headers=tech,
+        json={
+            "call_id": str(uuid4()),
+            "session_id": session_id,
+            "arguments": {"question": "¿cuál es el torque de la válvula?"},
+        },
+    )
+    assert response.status_code == 200
+    assert "answer" in response.json()["result"]
+
+
 async def test_tool_rejects_foreign_session(client: AsyncClient) -> None:
     tech = await _tech_headers(client)
     session_id = await _start_session(client, tech)

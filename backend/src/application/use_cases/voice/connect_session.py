@@ -62,14 +62,23 @@ class ConnectSessionUseCase:
         )
         work_order_code = work_order.code if work_order else ""
         asset_tag = ""
+        asset_model = ""
+        asset_name = ""
+        asset_id = work_order.asset_id if work_order else ""
         if work_order:
             asset = await self._assets.get_by_id(work_order.asset_id)
-            asset_tag = asset.tag if asset else ""
+            if asset:
+                asset_tag = asset.tag
+                asset_model = asset.model
+                asset_name = asset.name
 
         dynamic_variables = {
             "session_id": session_id,
             "work_order_code": work_order_code,
             "asset_tag": asset_tag,
+            "asset_id": asset_id,
+            "asset_model": asset_model,
+            "asset_name": asset_name,
         }
         result = await self._conversation_client.get_signed_url(
             self._agent_id,

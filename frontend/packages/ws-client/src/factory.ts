@@ -1,32 +1,13 @@
-import { getEnv } from '@superion/config';
-import type { IWsClient } from '@superion/domain';
+import { MockBackend } from "@superion/api-client";
+import { config } from "@superion/config";
+import type { IStorage, IWsClient } from "@superion/domain";
+import { InMemoryWsClient } from "./in_memory";
+import { RealWsClient } from "./real";
 
-import { InMemoryWsClient } from './in_memory';
-import { RealWsClient } from './ws';
-
-let singleton: IWsClient | null = null;
-
-export function getWsClient(): IWsClient {
-  if (singleton) {
-    return singleton;
+/** Devuelve el cliente WS según VITE_WS_MODE (mock por defecto). */
+export function createWsClient(storage: IStorage): IWsClient {
+  if (config.wsMode === "real") {
+    return new RealWsClient(config.wsBaseUrl, storage);
   }
-
-  const env = getEnv();
-  if (env.VITE_WS_MODE === 'mock') {
-    singleton = new InMemoryWsClient();
-    return singleton;
-  }
-  if (env.VITE_WS_MODE === 'real') {
-    singleton = new RealWsClient(env.VITE_WS_BASE_URL, env.VITE_API_BASE_URL);
-    return singleton;
-  }
-
-  throw new Error(`VITE_WS_MODE=${String(env.VITE_WS_MODE)} no soportado`);
-}
-
-export function resetWsClient(): void {
-  if (singleton?.reset) {
-    singleton.reset();
-  }
-  singleton = null;
+  return new InMemoryWsClient(MockBackend.shared());
 }

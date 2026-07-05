@@ -1,132 +1,66 @@
-import { useTranslation } from 'react-i18next';
-import { Link, useNavigate, useParams } from 'react-router';
-
-import { AppShell, Button, Skeleton } from '@superion/ui';
-
-import { ErrorBanner } from '../components/ErrorBanner';
-import { PriorityChip } from '../components/PriorityChip';
-import { StatusBadge } from '../components/StatusBadge';
-import { useStartSession } from '../hooks/useStartSession';
-import { useWorkOrder } from '../hooks/useWorkOrder';
-
-function WorkOrderDetailSkeleton() {
-  return (
-    <div className="space-y-4" data-testid="work-order-detail-skeleton">
-      <Skeleton height="2rem" className="w-1/3" />
-      <Skeleton height="1rem" className="w-2/3" />
-      <Skeleton height="6rem" className="w-full" />
-    </div>
-  );
-}
+import { useTranslation } from "@superion/i18n";
+import { Button, Screen, Spinner } from "@superion/ui";
+import { useNavigate, useParams } from "react-router-dom";
+import { useStartSession, useWorkOrder } from "@/hooks/useWorkOrders";
 
 export default function WorkOrderDetailPage() {
   const { t } = useTranslation();
+  const { id = "" } = useParams();
   const navigate = useNavigate();
-  const { id } = useParams<{ id: string }>();
-  const { data: workOrder, error, isLoading, refetch } = useWorkOrder(id);
+  const { data: order, isLoading } = useWorkOrder(id);
   const startSession = useStartSession();
 
-  const canStart =
-    workOrder?.status === 'pending' && !startSession.isPending && !startSession.isSuccess;
-
-  const handleStart = () => {
-    if (!id) {
-      return;
-    }
-    startSession.mutate(id);
-  };
+  if (isLoading || !order) {
+    return (
+      <Screen className="items-center justify-center">
+        <Spinner />
+      </Screen>
+    );
+  }
 
   return (
-    <AppShell
-      title={workOrder?.code ?? t('workOrders.detail.title')}
-      backLabel={t('workOrders.detail.back')}
-      onBack={() => navigate('/work-orders')}
-    >
-      <div className="flex min-h-[calc(100vh-4rem)] flex-col p-4">
-        {isLoading ? <WorkOrderDetailSkeleton /> : null}
+    <Screen className="pt-6">
+      <button type="button" onClick={() => navigate(-1)} className="mb-4 self-start text-slate-400">
+        ← {t("common.back")}
+      </button>
 
-        {error ? (
-          <ErrorBanner
-            message={t('workOrders.detail.errorLoading')}
-            retryLabel={t('workOrders.retry')}
-            onRetry={() => {
-              void refetch();
-            }}
+      <span className="font-mono text-sm text-slate-500">{order.code}</span>
+      <h1 className="text-3xl font-bold text-white">{order.asset.name}</h1>
+      <p className="text-slate-400">
+        {order.asset.tag} · {order.asset.model}
+      </p>
+
+      <dl className="mt-6 flex flex-col gap-4">
+        <Field label={t("workOrderDetail.procedure")} value={order.procedure_name ?? "—"} />
+        {order.estimated_minutes != null && (
+          <Field
+            label={t("workOrderDetail.estimated")}
+            value={t("workOrderDetail.minutes", { count: order.estimated_minutes })}
           />
-        ) : null}
+        )}
+        {order.description && (
+          <Field label={t("workOrderDetail.description")} value={order.description} />
+        )}
+        {order.notes && <Field label={t("workOrderDetail.notes")} value={order.notes} />}
+      </dl>
 
-        {workOrder ? (
-          <div className="flex flex-1 flex-col space-y-4">
-            <div className="space-y-2">
-              <div className="flex items-start justify-between gap-3">
-                <div>
-                  <h1 className="text-xl font-bold">{workOrder.code}</h1>
-                  <p className="text-sm text-[hsl(215_20%_65%)]">
-                    {workOrder.asset.name} · {workOrder.asset.tag}
-                  </p>
-                </div>
-                <StatusBadge status={workOrder.status} />
-              </div>
-              <p className="text-sm text-[hsl(215_20%_65%)]">{workOrder.procedureName}</p>
-              <div className="flex items-center gap-2">
-                <PriorityChip priority={workOrder.priority} />
-                <span className="text-xs text-[hsl(215_20%_65%)]">
-                  {t('workOrders.card.estimatedMinutes', {
-                    minutes: workOrder.estimatedMinutes,
-                  })}
-                </span>
-              </div>
-            </div>
-
-            {workOrder.description ? (
-              <section>
-                <h2 className="mb-1 text-sm font-semibold">{t('workOrders.detail.description')}</h2>
-                <p className="text-sm text-[hsl(215_20%_75%)]">{workOrder.description}</p>
-              </section>
-            ) : null}
-
-            {workOrder.notes ? (
-              <section>
-                <h2 className="mb-1 text-sm font-semibold">{t('workOrders.detail.notes')}</h2>
-                <p className="text-sm text-[hsl(215_20%_75%)]">{workOrder.notes}</p>
-              </section>
-            ) : null}
-
-            {startSession.error ? (
-              <div
-                role="alert"
-                aria-live="assertive"
-                className="rounded-lg border border-[hsl(0_84%_60%/0.4)] bg-[hsl(0_84%_60%/0.1)] p-3 text-sm text-[hsl(0_84%_70%)]"
-              >
-                {t('workOrders.detail.startError')}
-              </div>
-            ) : null}
-
-            <div className="mt-auto pt-6">
-              {canStart ? (
-                <Button
-                  type="button"
-                  className="min-h-14 w-full text-base"
-                  onClick={handleStart}
-                  disabled={startSession.isPending}
-                  aria-busy={startSession.isPending}
-                >
-                  {t('session.start')}
-                </Button>
-              ) : null}
-
-              {workOrder.status === 'in_progress' || workOrder.status === 'paused' ? (
-                <p className="text-center text-sm text-[hsl(215_20%_65%)]">
-                  {t('workOrders.detail.alreadyStarted')}{' '}
-                  <Link to="/work-orders" className="text-[hsl(217_91%_60%)] underline">
-                    {t('workOrders.detail.backToList')}
-                  </Link>
-                </p>
-              ) : null}
-            </div>
-          </div>
-        ) : null}
+      <div className="mt-auto pb-6 pt-8">
+        {startSession.isError && (
+          <p className="mb-3 text-center text-sm text-rose-400">{t("workOrderDetail.startError")}</p>
+        )}
+        <Button onClick={() => startSession.mutate(order.id)} disabled={startSession.isPending}>
+          {startSession.isPending ? t("workOrderDetail.starting") : t("workOrderDetail.start")}
+        </Button>
       </div>
-    </AppShell>
+    </Screen>
+  );
+}
+
+function Field({ label, value }: { label: string; value: string }) {
+  return (
+    <div className="rounded-2xl bg-slate-900 p-4 ring-1 ring-slate-800">
+      <dt className="text-xs uppercase tracking-wide text-slate-500">{label}</dt>
+      <dd className="mt-1 text-slate-100">{value}</dd>
+    </div>
   );
 }

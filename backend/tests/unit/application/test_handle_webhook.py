@@ -29,6 +29,7 @@ def use_case() -> HandleWebhookUseCase:
     sessions = AsyncMock()
     users = AsyncMock()
     classify = AsyncMock()
+    record_utterance = AsyncMock()
     pause = AsyncMock()
     langgraph = AsyncMock()
 
@@ -37,6 +38,7 @@ def use_case() -> HandleWebhookUseCase:
         sessions=sessions,
         users=users,
         classify_and_route=classify,
+        record_utterance=record_utterance,
         pause_session=pause,
         langgraph=langgraph,
     )
@@ -65,6 +67,29 @@ async def test_unknown_event_raises(use_case: HandleWebhookUseCase) -> None:
             current_user=_user(),
         )
     assert "desconocido" in exc.value.message.lower()
+
+
+async def test_agent_utterance_records_without_classify(use_case: HandleWebhookUseCase) -> None:
+    user = _user()
+    use_case._sessions.get_by_id_for_technician.return_value = MagicMock()
+    payload = json.dumps(
+        {
+            "event": "utterance.final",
+            "session_id": "sess-1",
+            "text": "Paso 1 de 12. Aislar el equipo.",
+            "speaker": "agent",
+        }
+    ).encode()
+
+    result = await use_case.execute(
+        raw_body=payload,
+        signature_header="t=1,v1=ok",
+        current_user=user,
+    )
+
+    assert result.accepted is True
+    use_case._record_utterance.execute.assert_awaited_once()
+    use_case._classify.execute.assert_not_awaited()
 
 
 async def test_utterance_final_dispatches_classify(use_case: HandleWebhookUseCase) -> None:

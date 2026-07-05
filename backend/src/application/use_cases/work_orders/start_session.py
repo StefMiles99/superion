@@ -9,7 +9,8 @@ from application.dto.mappers import procedure_template_to_output
 from application.dto.session import StartSessionOutput
 from domain.entities.maintenance_session import MaintenanceSession
 from domain.entities.user import User
-from domain.exceptions import ConflictError, NotFoundError
+from domain.entities.work_order import WorkOrder
+from domain.exceptions import ConflictError, ForbiddenError, NotFoundError
 from domain.ports.repositories import (
     IProcedureTemplateRepository,
     ISessionRepository,
@@ -56,10 +57,18 @@ class StartSessionUseCase:
             )
 
         active = await self._sessions.get_active_for_work_order(work_order_id)
-        if active is not None or order.status == WorkOrderStatus.IN_PROGRESS:
+        if active is not None:
+            if active.technician_id != current_user.id:
+                raise ForbiddenError(
+                    code="FORBIDDEN",
+                    message="Otro técnico tiene la sesión activa de esta OT.",
+                )
+            return await self._resume_existing(order=order, session=active)
+
+        if order.status == WorkOrderStatus.IN_PROGRESS:
             raise ConflictError(
                 code="WORK_ORDER_ALREADY_STARTED",
-                message="La OT ya tiene una sesión activa.",
+                message="La OT ya está en progreso sin sesión activa.",
             )
 
         template = await self._templates.get_by_id(order.procedure_template_id)
@@ -95,5 +104,33 @@ class StartSessionUseCase:
             procedure_template=procedure_template_to_output(template),
             langgraph_thread_id=thread_id,
             websocket_url=f"wss://placeholder/sessions/{session_id}",
+            started_at=started_at_str,
+        )
+
+    async def _resume_existing(
+        self,
+        *,
+        order: WorkOrder,
+        session: MaintenanceSession,
+    ) -> StartSessionOutput:
+        """Reanuda sesión activa del mismo técnico (idempotente)."""
+        template = await self._templates.get_by_id(order.procedure_template_id)
+        if template is None:
+            raise NotFoundError(
+                code="WORK_ORDER_NOT_FOUND",
+                message="Orden de trabajo no encontrada.",
+                details={"id": order.id},
+            )
+
+        if order.status == WorkOrderStatus.PENDING:
+            await self._work_orders.save(order.start())
+
+        started_at_str = session.started_at.isoformat().replace("+00:00", "Z")
+        return StartSessionOutput(
+            session_id=session.id,
+            work_order_id=order.id,
+            procedure_template=procedure_template_to_output(template),
+            langgraph_thread_id=session.langgraph_thread_id,
+            websocket_url=f"wss://placeholder/sessions/{session.id}",
             started_at=started_at_str,
         )

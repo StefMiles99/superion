@@ -1,360 +1,223 @@
-import type {
-  LoginInput,
-  LoginResponse,
-  RefreshInput,
-} from '@superion/domain';
-import { AuthError } from '@superion/domain';
-import type { IApiClient, Paginated } from '@superion/domain';
-import type { Role, User } from '@superion/domain';
-import type { WorkOrder, WorkOrderFilter } from '@superion/domain';
+import {
+  ApiError,
+  type AuthSession,
+  type FinalizeResult,
+  type IApiClient,
+  type IStorage,
+  type Manual,
+  type ManualUploadCommand,
+  type ManualUploadResult,
+  type Paginated,
+  type PhotoUploadResult,
+  type ReindexResult,
+  type Session,
+  type StartSessionResult,
+  type UploadPhotoCommand,
+  type UserProfile,
+  type VoiceConnect,
+  type WorkOrder,
+  type WorkOrderStatus,
+} from "@superion/domain";
+import { createTokenStore, type TokenStore } from "./token_store";
 
-import { ApiError, NotImplementedError } from './errors';
-
-interface AuthApiUser {
-  id: string;
-  email: string;
-  full_name: string;
-  role: Role;
-  plant_id: string;
+interface RequestOptions {
+  method?: string;
+  body?: unknown;
+  form?: FormData;
+  headers?: Record<string, string>;
+  raw?: boolean;
+  retry?: boolean;
 }
 
-interface AuthApiResponse {
-  access_token: string;
-  refresh_token: string;
-  expires_in: number;
-  user: AuthApiUser;
-}
-
-interface MeApiResponse {
-  id: string;
-  email: string;
-  full_name: string;
-  role: Role;
-  plant_id: string;
-}
-
-interface WorkOrdersApiResponse {
-  items: Array<{
-    id: string;
-    code: string;
-    status: WorkOrder['status'];
-    priority: WorkOrder['priority'];
-    procedure_name: string;
-    estimated_minutes: number;
-    asset: {
-      id: string;
-      tag: string;
-      name: string;
-    };
-  }>;
-  next_cursor: string | null;
-}
-
-function buildWorkOrdersQuery(filter: WorkOrderFilter = {}): string {
-  const params = new URLSearchParams();
-
-  if (filter.status) {
-    params.set('status', filter.status);
-  }
-  if (filter.priority) {
-    params.set('priority', filter.priority);
-  }
-  if (filter.q) {
-    params.set('q', filter.q);
-  }
-  if (filter.cursor) {
-    params.set('cursor', filter.cursor);
-  }
-  if (filter.limit !== undefined) {
-    params.set('limit', String(filter.limit));
-  }
-
-  const query = params.toString();
-  return query ? `?${query}` : '';
-}
-
-function mapUser(apiUser: AuthApiUser | MeApiResponse): User {
-  return {
-    id: apiUser.id,
-    email: apiUser.email,
-    fullName: apiUser.full_name,
-    role: apiUser.role,
-    plantId: apiUser.plant_id,
-  };
-}
-
-function mapLoginResponse(data: AuthApiResponse): LoginResponse {
-  return {
-    accessToken: data.access_token,
-    refreshToken: data.refresh_token,
-    expiresIn: data.expires_in,
-    user: mapUser(data.user),
-  };
-}
-
+/** Adaptador REST real contra el backend FastAPI. */
 export class HttpApiClient implements IApiClient {
-  private accessToken: string | null = null;
-  private refreshToken: string | null = null;
-  private refreshPromise: Promise<LoginResponse> | null = null;
+  private tokens: TokenStore;
 
-  constructor(private readonly baseUrl: string) {}
-
-  setTokens(accessToken: string | null, refreshToken?: string | null): void {
-    this.accessToken = accessToken;
-    if (refreshToken !== undefined) {
-      this.refreshToken = refreshToken;
-    }
+  constructor(
+    private readonly baseUrl: string,
+    storage: IStorage,
+  ) {
+    this.tokens = createTokenStore(storage);
   }
 
-  private async request<T>(
-    path: string,
-    options: RequestInit = {},
-    retried = false,
-  ): Promise<T> {
-    const headers = new Headers(options.headers);
+  private async request<T>(path: string, opts: RequestOptions = {}): Promise<T> {
+    const headers: Record<string, string> = { ...opts.headers };
+    const access = this.tokens.getAccess();
+    if (access) headers.Authorization = `Bearer ${access}`;
 
-    if (this.accessToken) {
-      headers.set('Authorization', `Bearer ${this.accessToken}`);
+    let body: BodyInit | undefined;
+    if (opts.form) {
+      body = opts.form;
+    } else if (opts.body !== undefined) {
+      headers["Content-Type"] = "application/json";
+      body = JSON.stringify(opts.body);
     }
 
-    if (
-      options.method &&
-      options.method !== 'GET' &&
-      options.method !== 'HEAD' &&
-      !headers.has('Idempotency-Key')
-    ) {
-      headers.set('Idempotency-Key', crypto.randomUUID());
-    }
-
-    const response = await fetch(`${this.baseUrl}${path}`, {
-      ...options,
+    const res = await fetch(`${this.baseUrl}${path}`, {
+      method: opts.method ?? "GET",
       headers,
-      credentials: 'include',
+      body,
     });
 
-    if (response.status === 401 && !retried && this.refreshToken) {
-      await this.performRefresh();
-      return this.request<T>(path, options, true);
+    if (res.status === 401 && !opts.retry && this.tokens.getRefresh()) {
+      const refreshed = await this.tryRefresh();
+      if (refreshed) return this.request<T>(path, { ...opts, retry: true });
     }
 
-    if (!response.ok) {
-      const body = await response.text();
-      if (response.status === 401) {
-        throw new AuthError(body || 'No autenticado');
+    if (!res.ok) throw await this.toError(res);
+    if (opts.raw) return res as unknown as T;
+    if (res.status === 204) return undefined as T;
+    return (await res.json()) as T;
+  }
+
+  private async tryRefresh(): Promise<boolean> {
+    const refresh = this.tokens.getRefresh();
+    if (!refresh) return false;
+    try {
+      const res = await fetch(`${this.baseUrl}/v1/auth/refresh`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ refresh_token: refresh }),
+      });
+      if (!res.ok) {
+        this.tokens.clear();
+        return false;
       }
-      throw new ApiError(`HTTP ${String(response.status)}: ${body}`, response.status);
+      const data = (await res.json()) as { access_token: string };
+      this.tokens.setAccess(data.access_token);
+      return true;
+    } catch {
+      return false;
     }
-
-    if (response.status === 204) {
-      return undefined as T;
-    }
-
-    return (await response.json()) as T;
   }
 
-  private async performRefresh(): Promise<LoginResponse> {
-    if (!this.refreshToken) {
-      throw new AuthError('No hay refresh token');
+  private async toError(res: Response): Promise<ApiError> {
+    let code = "HTTP_ERROR";
+    let message = res.statusText || "Error de red";
+    let details: Record<string, unknown> | undefined;
+    try {
+      const data = (await res.json()) as {
+        error?: { code?: string; message?: string; details?: Record<string, unknown> };
+      };
+      if (data.error) {
+        code = data.error.code ?? code;
+        message = data.error.message ?? message;
+        details = data.error.details;
+      }
+    } catch {
+      // respuesta sin cuerpo JSON
     }
-
-    if (!this.refreshPromise) {
-      this.refreshPromise = this.refresh({ refreshToken: this.refreshToken }).finally(
-        () => {
-          this.refreshPromise = null;
-        },
-      );
-    }
-
-    return this.refreshPromise;
+    return new ApiError(res.status, code, message, details);
   }
 
-  async login(input: LoginInput): Promise<LoginResponse> {
-    const data = await this.request<AuthApiResponse>('/v1/auth/login', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ email: input.email, password: input.password }),
+  // ---- IApiClient ----
+
+  async login(email: string, password: string): Promise<AuthSession> {
+    const session = await this.request<AuthSession>("/v1/auth/login", {
+      method: "POST",
+      body: { email, password },
     });
-
-    const mapped = mapLoginResponse(data);
-    this.setTokens(mapped.accessToken, mapped.refreshToken);
-    return mapped;
+    this.tokens.save(session);
+    return session;
   }
 
-  async refresh(input: RefreshInput): Promise<LoginResponse> {
-    const data = await this.request<AuthApiResponse>('/v1/auth/refresh', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ refresh_token: input.refreshToken }),
-    });
-
-    const mapped = mapLoginResponse(data);
-    this.setTokens(mapped.accessToken, mapped.refreshToken);
-    return mapped;
+  me(): Promise<UserProfile> {
+    return this.request<UserProfile>("/v1/auth/me");
   }
 
   async logout(): Promise<void> {
-    await this.request<void>('/v1/auth/logout', { method: 'POST' });
-    this.setTokens(null, null);
+    try {
+      await this.request<void>("/v1/auth/logout", { method: "POST", body: {} });
+    } finally {
+      this.tokens.clear();
+    }
   }
 
-  async me(): Promise<User> {
-    const data = await this.request<MeApiResponse>('/v1/auth/me');
-    return mapUser(data);
+  listWorkOrders(params?: { status?: WorkOrderStatus[] }): Promise<Paginated<WorkOrder>> {
+    const qs = new URLSearchParams();
+    params?.status?.forEach((s) => qs.append("status", s));
+    const suffix = qs.toString() ? `?${qs.toString()}` : "";
+    return this.request<Paginated<WorkOrder>>(`/v1/work-orders${suffix}`);
   }
 
-  async listWorkOrders(filter: WorkOrderFilter = {}): Promise<Paginated<WorkOrder>> {
-    const data = await this.request<WorkOrdersApiResponse>(
-      `/v1/work-orders${buildWorkOrdersQuery(filter)}`,
-    );
-
-    return {
-      items: data.items.map((item) => ({
-        id: item.id,
-        code: item.code,
-        status: item.status,
-        priority: item.priority,
-        procedureName: item.procedure_name,
-        estimatedMinutes: item.estimated_minutes,
-        asset: {
-          id: item.asset.id,
-          tag: item.asset.tag,
-          name: item.asset.name,
-        },
-      })),
-      nextCursor: data.next_cursor,
-    };
+  getWorkOrder(id: string): Promise<WorkOrder> {
+    return this.request<WorkOrder>(`/v1/work-orders/${id}`);
   }
 
-  async listActiveSessions(_plantId: string): Promise<import('@superion/domain').SessionSummary[]> {
-    throw new NotImplementedError('HttpApiClient.listActiveSessions — implementar en FE-09+');
+  startSession(workOrderId: string): Promise<StartSessionResult> {
+    return this.request<StartSessionResult>(`/v1/work-orders/${workOrderId}/start`, {
+      method: "POST",
+      body: {},
+    });
   }
 
-  async getWorkOrder(_id: string): Promise<import('@superion/domain').WorkOrderDetail> {
-    throw new NotImplementedError('HttpApiClient.getWorkOrder — implementar en FE-03+');
+  getSession(id: string): Promise<Session> {
+    return this.request<Session>(`/v1/sessions/${id}`);
   }
 
-  async addSessionNote(_sessionId: string, _note: string): Promise<void> {
-    throw new NotImplementedError('HttpApiClient.addSessionNote — implementar en FE-09+');
+  pauseSession(id: string): Promise<void> {
+    return this.request<void>(`/v1/sessions/${id}/pause`, { method: "POST", body: {} });
   }
 
-  async forceAdvance(_sessionId: string, _stepIndex: number): Promise<void> {
-    throw new NotImplementedError('HttpApiClient.forceAdvance — implementar en FE-10+');
+  resumeSession(id: string): Promise<void> {
+    return this.request<void>(`/v1/sessions/${id}/resume`, { method: "POST", body: {} });
   }
 
-  async listSessionEvents(_sessionId: string): Promise<import('@superion/domain').WsEvent[]> {
-    throw new NotImplementedError('HttpApiClient.listSessionEvents — implementar en FE-10+');
+  finalizeSession(id: string): Promise<FinalizeResult> {
+    return this.request<FinalizeResult>(`/v1/sessions/${id}/finalize`, {
+      method: "POST",
+      body: {},
+    });
   }
 
-  async startSession(_workOrderId: string): Promise<import('@superion/domain').SessionStart> {
-    throw new NotImplementedError('HttpApiClient.startSession — implementar en FE-03+');
+  voiceConnect(id: string): Promise<VoiceConnect> {
+    return this.request<VoiceConnect>(`/v1/sessions/${id}/voice/connect`, {
+      method: "POST",
+      body: {},
+    });
   }
 
-  async getSession(_id: string): Promise<import('@superion/domain').Session> {
-    throw new NotImplementedError('HttpApiClient.getSession — implementar en FE-03+');
+  uploadPhoto(sessionId: string, cmd: UploadPhotoCommand): Promise<PhotoUploadResult> {
+    const form = new FormData();
+    form.append("file", cmd.file, "evidence.jpg");
+    form.append("step_index", String(cmd.stepIndex));
+    form.append("event_id", cmd.eventId);
+    if (cmd.criteria) form.append("criteria", cmd.criteria);
+    return this.request<PhotoUploadResult>(`/v1/sessions/${sessionId}/photos`, {
+      method: "POST",
+      form,
+    });
   }
 
-  async postSessionEvent(
-    _sessionId: string,
-    _event: import('@superion/domain').SessionEventInput,
-  ): Promise<import('@superion/domain').SessionEventResponse> {
-    throw new NotImplementedError('HttpApiClient.postSessionEvent — implementar en FE-03+');
+  async reportPdf(sessionId: string): Promise<Blob> {
+    const res = await this.request<Response>(`/v1/sessions/${sessionId}/report/pdf`, {
+      raw: true,
+    });
+    return res.blob();
   }
 
-  async pauseSession(_sessionId: string): Promise<void> {
-    throw new NotImplementedError('HttpApiClient.pauseSession — implementar en FE-03+');
+  listManuals(): Promise<{ items: Manual[] }> {
+    return this.request<{ items: Manual[] }>("/v1/manuals");
   }
 
-  async resumeSession(_sessionId: string): Promise<void> {
-    throw new NotImplementedError('HttpApiClient.resumeSession — implementar en FE-03+');
+  getManual(id: string): Promise<Manual> {
+    return this.request<Manual>(`/v1/manuals/${id}`);
   }
 
-  async askAssistant(_sessionId: string, _question: string): Promise<import('@superion/domain').AssistantAnswer> {
-    throw new NotImplementedError('HttpApiClient.askAssistant — implementar en FE-06+');
+  uploadManual(cmd: ManualUploadCommand): Promise<ManualUploadResult> {
+    const form = new FormData();
+    form.append("file", cmd.file, "manual.pdf");
+    form.append("title", cmd.title);
+    form.append("asset_model", cmd.assetModel);
+    if (cmd.replacesManualId) form.append("replaces_manual_id", cmd.replacesManualId);
+    return this.request<ManualUploadResult>("/v1/manuals", { method: "POST", form });
   }
 
-  async uploadPhoto(
-    _sessionId: string,
-    _file: Blob,
-    _stepIndex: number,
-    _criteria?: string,
-    _eventId?: string,
-  ): Promise<import('@superion/domain').PhotoUploadResponse> {
-    throw new NotImplementedError('HttpApiClient.uploadPhoto — implementar en FE-07+');
+  reindexManual(id: string): Promise<ReindexResult> {
+    return this.request<ReindexResult>(`/v1/manuals/${id}/reindex`, { method: "POST", body: {} });
   }
 
-  async getReport(_sessionId: string): Promise<import('@superion/domain').MaintenanceReport> {
-    throw new NotImplementedError('HttpApiClient.getReport — implementar en FE-08+');
-  }
-
-  async getReportPdf(_sessionId: string): Promise<Blob> {
-    throw new NotImplementedError('HttpApiClient.getReportPdf — implementar en FE-08+');
-  }
-
-  async finalizeSession(
-    _sessionId: string,
-  ): Promise<import('@superion/domain').FinalizeSessionResponse> {
-    throw new NotImplementedError('HttpApiClient.finalizeSession — implementar en FE-08+');
-  }
-
-  async listManuals(): Promise<{ items: import('@superion/domain').Manual[] }> {
-    throw new NotImplementedError('HttpApiClient.listManuals — implementar en FE-11+');
-  }
-
-  async getManual(_id: string): Promise<import('@superion/domain').ManualDetail> {
-    throw new NotImplementedError('HttpApiClient.getManual — implementar en FE-11+');
-  }
-
-  async uploadManual(
-    _input: import('@superion/domain').ManualUploadInput,
-  ): Promise<import('@superion/domain').ManualUploadResponse> {
-    throw new NotImplementedError('HttpApiClient.uploadManual — implementar en FE-11+');
-  }
-
-  async reindexManual(
-    _id: string,
-  ): Promise<import('@superion/domain').ManualReindexResponse> {
-    throw new NotImplementedError('HttpApiClient.reindexManual — implementar en FE-11+');
-  }
-
-  async archiveManual(_id: string): Promise<void> {
-    throw new NotImplementedError('HttpApiClient.archiveManual — implementar en FE-11+');
-  }
-
-  async searchManual(
-    _id: string,
-    _query: string,
-  ): Promise<import('@superion/domain').ManualSearchResponse> {
-    throw new NotImplementedError('HttpApiClient.searchManual — implementar en FE-11+');
-  }
-
-  async listProcedureTemplates(): Promise<
-    Paginated<import('@superion/domain').ProcedureTemplateListItem>
-  > {
-    throw new NotImplementedError('HttpApiClient.listProcedureTemplates — implementar en FE-12+');
-  }
-
-  async getProcedureTemplate(_id: string): Promise<import('@superion/domain').ProcedureTemplate> {
-    throw new NotImplementedError('HttpApiClient.getProcedureTemplate — implementar en FE-12+');
-  }
-
-  async createProcedureTemplate(
-    _input: import('@superion/domain').CreateProcedureTemplateInput,
-  ): Promise<import('@superion/domain').ProcedureTemplate> {
-    throw new NotImplementedError('HttpApiClient.createProcedureTemplate — implementar en FE-12+');
-  }
-
-  async updateProcedureTemplate(
-    _id: string,
-    _input: import('@superion/domain').UpdateProcedureTemplateInput,
-  ): Promise<import('@superion/domain').ProcedureTemplate> {
-    throw new NotImplementedError('HttpApiClient.updateProcedureTemplate — implementar en FE-12+');
-  }
-
-  async archiveProcedureTemplate(_id: string): Promise<void> {
-    throw new NotImplementedError('HttpApiClient.archiveProcedureTemplate — implementar en FE-12+');
-  }
-
-  async healthCheck(): Promise<{ status: string }> {
-    return this.request<{ status: string }>('/health');
+  deleteManual(id: string): Promise<void> {
+    return this.request<void>(`/v1/manuals/${id}`, { method: "DELETE" });
   }
 }

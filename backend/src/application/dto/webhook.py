@@ -13,6 +13,10 @@ class WebhookEventInput(BaseModel):
     event: str = Field(description="Tipo de evento: conversation.started, utterance.final, etc.")
     session_id: str | None = None
     text: str | None = None
+    speaker: str | None = Field(
+        default=None,
+        description="Origen del utterance: user|agent (ElevenLabs).",
+    )
     audio_url: str | None = None
     timestamp: str | None = None
     tool_name: str | None = None

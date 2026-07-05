@@ -1,87 +1,73 @@
-import { useEffect, useId, useState } from 'react';
-import { useTranslation } from 'react-i18next';
-import { useNavigate } from 'react-router';
-
-import { useLogin, useLoginRedirectPath } from '@superion/auth';
-import { getDefaultRouteForRole, AuthError } from '@superion/domain';
-import { Button, Card, Form, Input, Label } from '@superion/ui';
+import { useTranslation } from "@superion/i18n";
+import { Button } from "@superion/ui";
+import { useState, type FormEvent } from "react";
+import { useLocation } from "react-router-dom";
+import { DesktopAccessDeniedError, useLogin } from "@/hooks/useAuth";
+import { readRoleDenied } from "@/lib/loginState";
 
 export default function LoginPage() {
   const { t } = useTranslation();
-  const navigate = useNavigate();
   const login = useLogin();
-  const redirectPath = useLoginRedirectPath();
-  const emailId = useId();
-  const passwordId = useId();
-  const errorId = useId();
+  const location = useLocation();
+  const [email, setEmail] = useState("admin@planta.com");
+  const [password, setPassword] = useState("test1234");
 
-  const [email, setEmail] = useState('');
-  const [password, setPassword] = useState('');
-  const [errorMessage, setErrorMessage] = useState<string | null>(null);
+  const roleDenied =
+    readRoleDenied(location.state) ||
+    (login.isError && login.error instanceof DesktopAccessDeniedError);
 
-  useEffect(() => {
-    if (redirectPath) {
-      navigate(redirectPath, { replace: true });
-    }
-  }, [navigate, redirectPath]);
-
-  const handleSubmit = async (event: React.FormEvent<HTMLFormElement>) => {
-    event.preventDefault();
-    setErrorMessage(null);
-
-    try {
-      const session = await login.mutateAsync({ email, password });
-      navigate(getDefaultRouteForRole(session.user.role), { replace: true });
-    } catch (error) {
-      if (error instanceof AuthError) {
-        setErrorMessage(t('auth.errorInvalidCredentials'));
-        return;
-      }
-      setErrorMessage(t('auth.errorGeneric'));
-    }
+  const submit = (e: FormEvent) => {
+    e.preventDefault();
+    login.mutate({ email, password });
   };
 
   return (
-    <main className="flex min-h-screen items-center justify-center p-4">
-      <Card className="w-full max-w-md">
-        <h1 className="mb-6 text-center text-2xl font-bold">{t('auth.title')}</h1>
-        <Form onSubmit={handleSubmit} aria-describedby={errorMessage ? errorId : undefined}>
-          <div>
-            <Label htmlFor={emailId}>{t('auth.email')}</Label>
-            <Input
-              id={emailId}
-              name="email"
+    <div className="flex min-h-dvh items-center justify-center bg-slate-950 px-4">
+      <div className="w-full max-w-md rounded-3xl bg-slate-900 p-8 ring-1 ring-slate-800">
+        <div className="mb-8 text-center">
+          <h1 className="text-3xl font-black tracking-tight text-sky-400">
+            {t("common.appName")}
+          </h1>
+          <p className="mt-1 text-slate-400">{t("manuals.navTitle")}</p>
+        </div>
+
+        <form onSubmit={submit} className="flex flex-col gap-4">
+          <label className="flex flex-col gap-1 text-sm text-slate-400">
+            {t("login.email")}
+            <input
               type="email"
               autoComplete="email"
-              required
               value={email}
-              onChange={(event) => setEmail(event.target.value)}
-              hasError={Boolean(errorMessage)}
+              onChange={(e) => setEmail(e.target.value)}
+              className="rounded-xl bg-slate-950 px-4 py-3 text-white ring-1 ring-slate-800 outline-none focus:ring-sky-500"
             />
-          </div>
-          <div>
-            <Label htmlFor={passwordId}>{t('auth.password')}</Label>
-            <Input
-              id={passwordId}
-              name="password"
+          </label>
+          <label className="flex flex-col gap-1 text-sm text-slate-400">
+            {t("login.password")}
+            <input
               type="password"
               autoComplete="current-password"
-              required
               value={password}
-              onChange={(event) => setPassword(event.target.value)}
-              hasError={Boolean(errorMessage)}
+              onChange={(e) => setPassword(e.target.value)}
+              className="rounded-xl bg-slate-950 px-4 py-3 text-white ring-1 ring-slate-800 outline-none focus:ring-sky-500"
             />
-          </div>
-          {errorMessage ? (
-            <p id={errorId} role="alert" className="text-sm text-[hsl(0_72%_51%)]">
-              {errorMessage}
-            </p>
-          ) : null}
-          <Button type="submit" disabled={login.isPending} className="w-full">
-            {login.isPending ? t('common.loading') : t('auth.submit')}
+          </label>
+
+          {roleDenied && (
+            <p className="text-sm text-rose-400">{t("login.roleDenied")}</p>
+          )}
+
+          {login.isError && !(login.error instanceof DesktopAccessDeniedError) && (
+            <p className="text-sm text-rose-400">{t("login.error")}</p>
+          )}
+
+          <Button type="submit" disabled={login.isPending}>
+            {login.isPending ? t("common.loading") : t("login.submit")}
           </Button>
-        </Form>
-      </Card>
-    </main>
+        </form>
+
+        <p className="mt-6 text-center text-xs text-slate-600">{t("access.adminHint")}</p>
+      </div>
+    </div>
   );
 }

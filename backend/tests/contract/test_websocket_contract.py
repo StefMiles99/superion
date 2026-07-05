@@ -54,6 +54,17 @@ def test_photo_validated_shape() -> None:
     assert message["type"] == "photo.validated"
 
 
+def test_event_appended_wraps_utterance() -> None:
+    event = _make_event(
+        "utterance",
+        {"text": "ya cerré la válvula", "speaker": "technician", "intent": "narration"},
+    )
+    message = event_to_ws_message(event)
+    assert message["type"] == "event.appended"
+    assert message["payload"]["type"] == "utterance"
+    assert message["payload"]["text"] == "ya cerré la válvula"
+
+
 def test_event_appended_wraps_rest_types() -> None:
     event = _make_event(
         EventType.MEASUREMENT.value,

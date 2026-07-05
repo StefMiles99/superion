@@ -1,68 +1,44 @@
-import { StrictMode } from 'react';
-import { createRoot } from 'react-dom/client';
-import { I18nextProvider } from 'react-i18next';
+import { MockBackend } from "@superion/api-client";
+import { config } from "@superion/config";
+import { setupI18n } from "@superion/i18n";
+import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
+import { StrictMode } from "react";
+import { createRoot } from "react-dom/client";
+import { BrowserRouter } from "react-router-dom";
+import { App } from "@/App";
+import { createServices } from "@/services/container";
+import { ServicesProvider } from "@/services/context";
+import "@/index.css";
 
-import { getApiClient, InMemoryApiClient } from '@superion/api-client';
-import { syncApiTokensFromSession } from '@superion/auth';
-import { getEnv } from '@superion/config';
-import { initI18n } from '@superion/i18n';
-import { initTelemetry } from '@superion/telemetry';
-import { getWsClient } from '@superion/ws-client';
+setupI18n(config.defaultLocale);
 
-import { App } from './App';
-import './index.css';
-import { registerServiceWorker } from './service-worker';
-
-const env = getEnv();
-const i18n = initI18n(env.VITE_DEFAULT_LOCALE);
-
-initTelemetry({
-  sentryDsn: env.VITE_SENTRY_DSN,
-  enabled: env.VITE_TELEMETRY_ENABLED,
-  apiBaseUrl: env.VITE_API_BASE_URL,
-  webVitalsEndpoint: env.VITE_WEB_VITALS_ENDPOINT,
+const queryClient = new QueryClient({
+  defaultOptions: {
+    queries: { retry: 1, refetchOnWindowFocus: false },
+  },
 });
 
-const api = getApiClient();
-const ws = getWsClient();
+const services = createServices();
 
-if (api instanceof InMemoryApiClient && typeof ws.emit === 'function') {
-  api.setPhotoEventEmitter((event) => {
-    ws.emit?.(event);
-  });
+// Handles de depuración en dev/test (Playwright puede manipular el mock).
+if (config.isDev) {
+  (globalThis as Record<string, unknown>).__superion = {
+    api: services.api,
+    ws: services.ws,
+    voice: services.voice,
+    config,
+    reset: () => MockBackend.shared().reset(),
+  };
 }
 
-syncApiTokensFromSession();
-
-if (import.meta.env.DEV || import.meta.env.MODE === 'test') {
-  window.__superion = { api, ws };
-  window.__mockWs = ws;
-}
-
-void registerServiceWorker(env.VITE_PWA_ENABLED);
-
-window.addEventListener('online', () => {
-  if ('serviceWorker' in navigator && navigator.serviceWorker.controller) {
-    void navigator.serviceWorker.ready.then((registration) => {
-      if ('sync' in registration) {
-        void (registration as ServiceWorkerRegistration & { sync: { register: (tag: string) => Promise<void> } }).sync.register('photo-queue-sync');
-      }
-    });
-  }
-});
-
-if ('serviceWorker' in navigator) {
-  navigator.serviceWorker.addEventListener('message', (event) => {
-    if (event.data?.type === 'photo-queue-sync') {
-      window.dispatchEvent(new Event('online'));
-    }
-  });
-}
-
-createRoot(document.getElementById('root')!).render(
+createRoot(document.getElementById("root")!).render(
   <StrictMode>
-    <I18nextProvider i18n={i18n}>
-      <App />
-    </I18nextProvider>
+    <QueryClientProvider client={queryClient}>
+      <ServicesProvider services={services}>
+        <BrowserRouter>
+          <App />
+        </BrowserRouter>
+      </ServicesProvider>
+    </QueryClientProvider>
   </StrictMode>,
 );

@@ -1,16 +1,4 @@
-import '@testing-library/jest-dom/vitest';
-import 'vitest-axe/extend-expect';
-import { cleanup } from '@testing-library/react';
-import { afterEach } from 'vitest';
-import { fetch, Headers, Request, Response } from 'undici';
+import { setupI18n } from "@superion/i18n";
+import "@testing-library/jest-dom/vitest";
 
-Object.assign(globalThis, {
-  fetch,
-  Headers,
-  Request,
-  Response,
-});
-
-afterEach(() => {
-  cleanup();
-});
+setupI18n("es-ES");

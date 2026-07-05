@@ -19,6 +19,7 @@ dependencies = [
     "bcrypt>=4.2.0",
     "python-multipart>=0.0.12",
     "numpy>=2.0.0",
+    "asyncpg>=0.30.0",
 ]
 
 [project.optional-dependencies]
@@ -32,6 +33,13 @@ dev = [
 
 elevenlabs = [
     "elevenlabs>=1.50.0",
+]
+
+prod = [
+    "elevenlabs>=1.50.0",
+    "pypdf>=5.1.0",
+    "weasyprint>=63.0",
+    "redis>=5.2.0",
 ]
 
 [tool.setuptools.packages.find]

@@ -1,256 +1,129 @@
-import { useEffect, useState } from 'react';
-import { useTranslation } from 'react-i18next';
-import { useNavigate, useParams } from 'react-router';
-import { useQueryClient } from '@tanstack/react-query';
-
-import {
-  getCurrentStep,
-  getTotalSteps,
-} from '@superion/domain';
-import { AppShell, Button, ErrorBoundary, Skeleton } from '@superion/ui';
-import { Sentry } from '@superion/telemetry';
-
-import { AskAssistantModal } from '../components/AskAssistantModal';
-import { AssistantHistoryPanel } from '../components/AssistantHistoryPanel';
-import { CompactStepList } from '../components/CompactStepList';
-import { ConnectionBanner } from '../components/ConnectionBanner';
-import { ErrorBanner } from '../components/ErrorBanner';
-import { StepActions } from '../components/StepActions';
-import { StepCard } from '../components/StepCard';
-import { Stepper } from '../components/Stepper';
-import { Timer } from '../components/Timer';
-import { VoiceIndicator } from '../components/VoiceIndicator';
-import { useEta } from '../hooks/useEta';
-import { useAssistantHistory } from '../hooks/useAssistantHistory';
-import { getStepThumbnail, isStepPhotoAccepted } from '../hooks/photo_state';
-import { usePhotoQueue } from '../hooks/usePhotoQueue';
-import { useSession, useSessionProcedure } from '../hooks/useSession';
-import { useSessionActions } from '../hooks/useSessionActions';
-import { useSessionStream } from '../hooks/useSessionStream';
-import { useSessionTimers } from '../hooks/useSessionTimers';
-import { useWorkOrder } from '../hooks/useWorkOrder';
-
-function SessionPageSkeleton() {
-  return (
-    <div className="space-y-4 p-4" data-testid="session-skeleton">
-      <Skeleton height="1.5rem" className="w-1/2" />
-      <Skeleton height="12rem" className="w-full" />
-    </div>
-  );
-}
+import { useTranslation } from "@superion/i18n";
+import { Button, Screen, Spinner, cn } from "@superion/ui";
+import { useEffect, useMemo, useState } from "react";
+import { useNavigate, useParams } from "react-router-dom";
+import { AnalysisEdge } from "@/components/AnalysisEdge";
+import { AssistantHint } from "@/components/AssistantHint";
+import { CameraCapture } from "@/components/CameraCapture";
+import { ConversationTranscript } from "@/components/ConversationTranscript";
+import { MicButton } from "@/components/MicButton";
+import { StepBanner } from "@/components/StepBanner";
+import { useSessionControls } from "@/hooks/useSession";
+import { useSessionEvents } from "@/hooks/useSessionEvents";
+import { useUploadPhoto } from "@/hooks/useUploadPhoto";
+import { useVoiceAgent } from "@/hooks/useVoiceAgent";
+import { readTemplate } from "@/hooks/useWorkOrders";
+import { useSessionStore } from "@/stores/session";
 
 export default function SessionPage() {
   const { t } = useTranslation();
+  const { id = "" } = useParams();
   const navigate = useNavigate();
-  const queryClient = useQueryClient();
-  const { id: sessionId } = useParams<{ id: string }>();
 
-  const { data: session, error: sessionError, isLoading: sessionLoading, refetch } =
-    useSession(sessionId);
-  const { data: procedure, error: procedureError, isLoading: procedureLoading } =
-    useSessionProcedure(sessionId);
-  const { data: workOrder } = useWorkOrder(session?.workOrderId);
-  const { advanceStep, pauseSession, resumeSession, getAdvanceError, clearAdvanceError } =
-    useSessionActions(sessionId);
+  const template = useMemo(() => readTemplate(id), [id]);
+  const setSteps = useSessionStore((s) => s.setSteps);
+  const reset = useSessionStore((s) => s.reset);
 
-  const { totalSeconds, stepSeconds } = useSessionTimers(session);
-  const etaSeconds = useEta(session, procedure, totalSeconds);
-  const { connectionState, voiceMode, showRetryCta, retryConnection } =
-    useSessionStream(sessionId);
-  const { data: assistantHistory = [] } = useAssistantHistory(sessionId);
-  const { isSyncing } = usePhotoQueue();
-  const [assistantModalOpen, setAssistantModalOpen] = useState(false);
-  const [historyPanelOpen, setHistoryPanelOpen] = useState(false);
+  const steps = useSessionStore((s) => s.steps);
+  const currentIndex = useSessionStore((s) => s.currentStepIndex);
+  const status = useSessionStore((s) => s.status);
+  const analysis = useSessionStore((s) => s.analysis);
+  const lastAnswer = useSessionStore((s) => s.lastAnswer);
+  const transcript = useSessionStore((s) => s.transcript);
 
-  const isLoading = sessionLoading || procedureLoading;
-  const error = sessionError ?? procedureError;
-  const advanceError = getAdvanceError();
+  const [showCamera, setShowCamera] = useState(false);
 
-  const currentStep =
-    session && procedure ? getCurrentStep(procedure, session.currentStepIndex) : undefined;
-  const totalSteps = procedure ? getTotalSteps(procedure) : 0;
-  const isPaused = session?.status === 'paused';
-  const photoAccepted =
-    sessionId && session
-      ? isStepPhotoAccepted(queryClient, sessionId, session.currentStepIndex)
-      : false;
-  const stepThumbnail =
-    sessionId && session
-      ? getStepThumbnail(queryClient, sessionId, session.currentStepIndex)
-      : null;
+  useSessionEvents(id);
+  const voice = useVoiceAgent(id);
+  const upload = useUploadPhoto(id);
+  const controls = useSessionControls(id);
 
   useEffect(() => {
-    if (!sessionId || !session || !currentStep?.requiresPhoto || photoAccepted) {
-      return;
-    }
-    navigate(`/sessions/${sessionId}/camera`, { replace: true });
-  }, [currentStep?.requiresPhoto, navigate, photoAccepted, session, sessionId]);
+    if (template) setSteps(template.steps);
+    return () => reset();
+  }, [template, setSteps, reset]);
 
-  const handleAdvance = () => {
-    if (!session) {
-      return;
-    }
-    clearAdvanceError();
-    advanceStep.mutate(session.currentStepIndex);
+  useEffect(() => {
+    if (status === "finalized") navigate(`/report/${id}`, { replace: true });
+  }, [status, id, navigate]);
+
+  const currentStep = steps[currentIndex];
+
+  if (steps.length === 0) {
+    return (
+      <Screen className="items-center justify-center">
+        <Spinner />
+        <p className="mt-4 text-slate-400">{t("session.connecting")}</p>
+      </Screen>
+    );
+  }
+
+  const onCapture = (blob: Blob) => {
+    setShowCamera(false);
+    upload.mutate({
+      file: blob,
+      stepIndex: currentIndex,
+      criteria: currentStep?.photo_criteria ?? undefined,
+    });
   };
-
-  const handlePauseToggle = () => {
-    if (!session) {
-      return;
-    }
-    if (session.status === 'active') {
-      pauseSession.mutate();
-      return;
-    }
-    if (session.status === 'paused') {
-      resumeSession.mutate();
-    }
-  };
-
-  const photoErrorMessage =
-    advanceError?.code === 'STEP_REQUIRES_PHOTO'
-      ? t('session.errors.requiresPhoto')
-      : advanceError?.message ?? null;
 
   return (
-    <AppShell
-      title={workOrder?.code ?? t('session.title')}
-      backLabel={t('session.back')}
-      onBack={() => navigate(`/work-orders/${session?.workOrderId ?? ''}`)}
-      headerActions={
-        session ? (
-          <Button
-            type="button"
-            variant="secondary"
-            className="min-h-10 px-3 text-sm"
-            onClick={handlePauseToggle}
-            disabled={pauseSession.isPending || resumeSession.isPending}
-            aria-label={isPaused ? t('session.actions.resume') : t('session.actions.pause')}
-          >
-            {isPaused ? t('session.actions.resume') : t('session.actions.pause')}
+    <Screen className="pt-6">
+      <StepBanner step={currentStep} currentIndex={currentIndex} total={steps.length} />
+
+      <div className="mt-4">
+        <AssistantHint answer={lastAnswer} />
+        <ConversationTranscript entries={transcript} />
+      </div>
+
+      <div className="flex flex-1 items-center justify-center py-6">
+        <MicButton state={voice.state} onToggle={() => void voice.toggle()} />
+      </div>
+
+      <div className="flex flex-col gap-3 pb-6">
+        {currentStep?.requires_photo && (
+          <Button variant="surface" onClick={() => setShowCamera(true)}>
+            {t("session.takePhoto")}
           </Button>
-        ) : undefined
-      }
-      headerMeta={
-        session ? (
-          <Timer
-            seconds={totalSeconds}
-            label={t('session.timer')}
-            testId="total-timer"
-          />
-        ) : undefined
-      }
-    >
-      {isLoading ? <SessionPageSkeleton /> : null}
+        )}
 
-      {error ? (
-        <div className="p-4">
-          <ErrorBanner
-            message={t('session.errorLoading')}
-            retryLabel={t('workOrders.retry')}
-            onRetry={() => {
-              void refetch();
-            }}
-          />
+        <div className="flex gap-3">
+          {status === "paused" ? (
+            <Button variant="ghost" onClick={() => controls.resume.mutate()}>
+              {t("session.resume")}
+            </Button>
+          ) : (
+            <Button variant="ghost" onClick={() => controls.pause.mutate()}>
+              {t("session.pause")}
+            </Button>
+          )}
+          <Button
+            variant="danger"
+            onClick={() => controls.finalize.mutate()}
+            disabled={controls.finalize.isPending}
+          >
+            {controls.finalize.isPending ? t("session.finalizing") : t("session.finalize")}
+          </Button>
         </div>
-      ) : null}
+      </div>
 
-      {session && procedure && currentStep ? (
-        <ErrorBoundary
-          labels={{
-            title: t('errors.sessionBoundaryTitle'),
-            message: t('errors.sessionBoundaryMessage'),
-            reload: t('errors.boundaryReload'),
-          }}
-          onError={(error) => {
-            Sentry.captureException(error);
-          }}
-        >
-        <div className="flex min-h-[calc(100vh-4rem)] flex-col">
-          <ConnectionBanner
-            connectionState={connectionState}
-            showRetryCta={showRetryCta}
-            onRetry={retryConnection}
-          />
-          <VoiceIndicator active={voiceMode !== 'idle'} mode={voiceMode} />
-          {photoErrorMessage ? (
-            <div
-              role="alert"
-              aria-live="assertive"
-              data-testid="session-step-error"
-              className="mx-4 mt-4 rounded-lg border border-[hsl(0_84%_60%/0.4)] bg-[hsl(0_84%_60%/0.1)] p-3 text-sm text-[hsl(0_84%_70%)]"
-            >
-              {photoErrorMessage}
-            </div>
-          ) : null}
+      <AnalysisEdge analysis={analysis} />
 
-          <div className="flex-1 space-y-4 p-4">
-            <Stepper currentStepIndex={session.currentStepIndex} totalSteps={totalSteps} />
-            <CompactStepList steps={procedure.steps} currentStepIndex={session.currentStepIndex} />
-            <StepCard
-              step={currentStep}
-              stepSeconds={stepSeconds}
-              etaSeconds={etaSeconds}
-              thumbnailUrl={stepThumbnail}
-              isSyncing={isSyncing && currentStep.requiresPhoto && !photoAccepted}
-            />
-            <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
-              <Button
-                type="button"
-                variant="secondary"
-                className="min-h-14 w-full text-base"
-                onClick={() => {
-                  navigate(`/sessions/${session.id}/report`);
-                }}
-              >
-                {t('report.viewReport')}
-              </Button>
-              <Button
-                type="button"
-                variant="secondary"
-                className="min-h-14 w-full text-base"
-                onClick={() => {
-                  setAssistantModalOpen(true);
-                }}
-              >
-                {t('assistant.openModal')}
-              </Button>
-              <Button
-                type="button"
-                variant="ghost"
-                className="min-h-14 w-full text-base sm:col-span-2"
-                onClick={() => {
-                  setHistoryPanelOpen(true);
-                }}
-              >
-                {t('assistant.viewHistory')}
-              </Button>
-            </div>
-          </div>
-
-          <AskAssistantModal
-            sessionId={session.id}
-            open={assistantModalOpen}
-            onClose={() => {
-              setAssistantModalOpen(false);
-            }}
-          />
-          <AssistantHistoryPanel
-            open={historyPanelOpen}
-            onClose={() => {
-              setHistoryPanelOpen(false);
-            }}
-            entries={assistantHistory}
-          />
-
-          <StepActions
-            onAdvance={handleAdvance}
-            isAdvancing={advanceStep.isPending}
-            disabled={isPaused}
-          />
+      {status === "paused" && (
+        <div className={cn("fixed inset-0 z-30 flex items-center justify-center bg-slate-950/70")}>
+          <span className="rounded-full bg-slate-800 px-6 py-3 text-lg font-semibold text-slate-100">
+            {t("session.paused")}
+          </span>
         </div>
-        </ErrorBoundary>
-      ) : null}
-    </AppShell>
+      )}
+
+      {showCamera && (
+        <CameraCapture
+          criteria={currentStep?.photo_criteria}
+          onCapture={onCapture}
+          onClose={() => setShowCamera(false)}
+        />
+      )}
+    </Screen>
   );
 }

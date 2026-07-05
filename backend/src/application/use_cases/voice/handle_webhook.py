@@ -8,6 +8,7 @@ import logging
 from application.dto.webhook import WebhookEventInput, WebhookEventOutput
 from application.use_cases.sessions.pause import PauseSessionUseCase
 from application.use_cases.voice.classify_and_route import ClassifyAndRouteUseCase
+from application.use_cases.voice.record_utterance import RecordUtteranceUseCase
 from domain.entities.user import User
 from domain.exceptions import NotFoundError, UnauthorizedError, ValidationError
 from domain.ports.repositories import ISessionRepository, IUserRepository
@@ -25,6 +26,8 @@ KNOWN_EVENTS = frozenset({
     "error",
 })
 
+_AGENT_SPEAKERS = frozenset({"agent", "assistant"})
+
 
 class HandleWebhookUseCase:
     """Orquesta webhook ElevenLabs: firma, dispatch por tipo."""
@@ -36,6 +39,7 @@ class HandleWebhookUseCase:
         sessions: ISessionRepository,
         users: IUserRepository,
         classify_and_route: ClassifyAndRouteUseCase,
+        record_utterance: RecordUtteranceUseCase,
         pause_session: PauseSessionUseCase,
         langgraph: ILangGraphClient,
     ) -> None:
@@ -43,6 +47,7 @@ class HandleWebhookUseCase:
         self._sessions = sessions
         self._users = users
         self._classify = classify_and_route
+        self._record_utterance = record_utterance
         self._pause = pause_session
         self._langgraph = langgraph
 
@@ -159,6 +164,18 @@ class HandleWebhookUseCase:
                 code="VALIDATION_ERROR",
                 message="session_id y text requeridos.",
             )
+
+        speaker = (event.speaker or "user").lower()
+        if speaker in _AGENT_SPEAKERS:
+            await self._record_utterance.execute(
+                session_id=event.session_id,
+                text=event.text,
+                current_user=user,
+                speaker="agent",
+                audio_ref=event.audio_url,
+            )
+            return
+
         await self._classify.execute(
             session_id=event.session_id,
             text=event.text,

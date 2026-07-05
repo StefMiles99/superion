@@ -6,9 +6,12 @@
       "type": "object",
       "properties": {
         "question": { "type": "string", "description": "Pregunta técnica del técnico" },
-        "asset_id": { "type": "string", "description": "ID del activo" }
+        "asset_id": {
+          "type": "string",
+          "description": "Opcional. Usa el asset_id del contexto de sesión; si falta, el backend lo infiere de la OT activa."
+        }
       },
-      "required": ["question", "asset_id"]
+      "required": ["question"]
     },
     "webhook": {
       "method": "POST",

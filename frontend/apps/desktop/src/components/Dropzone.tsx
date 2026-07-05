@@ -1,79 +1,79 @@
-import { useCallback } from 'react';
-import { useDropzone, type FileRejection } from 'react-dropzone';
-import { useTranslation } from 'react-i18next';
-
-import { cn } from '@superion/ui';
-
-const MAX_SIZE_BYTES = 50 * 1024 * 1024;
+import { validateManualFile, type ManualFileError } from "@superion/domain";
+import { useTranslation } from "@superion/i18n";
+import { cn } from "@superion/ui";
+import { useRef, useState, type DragEvent } from "react";
 
 interface DropzoneProps {
-  onFileSelected: (file: File) => void;
-  disabled?: boolean;
-  className?: string;
+  file: File | null;
+  onFile: (file: File | null) => void;
+  onError: (error: ManualFileError | null) => void;
 }
 
-export function Dropzone({ onFileSelected, disabled = false, className }: DropzoneProps) {
+export function Dropzone({ file, onFile, onError }: DropzoneProps) {
   const { t } = useTranslation();
+  const inputRef = useRef<HTMLInputElement>(null);
+  const [dragging, setDragging] = useState(false);
 
-  const onDrop = useCallback(
-    (acceptedFiles: File[], rejectedFiles: readonly FileRejection[]) => {
-      if (rejectedFiles.length > 0) {
-        return;
-      }
+  const accept = (candidate: File | undefined) => {
+    if (!candidate) return;
+    const result = validateManualFile({
+      type: candidate.type,
+      size: candidate.size,
+      name: candidate.name,
+    });
+    if (result.ok) {
+      onError(null);
+      onFile(candidate);
+    } else {
+      onError(result.error);
+      onFile(null);
+    }
+  };
 
-      const file = acceptedFiles[0];
-      if (file) {
-        onFileSelected(file);
-      }
-    },
-    [onFileSelected],
-  );
-
-  const { getRootProps, getInputProps, isDragActive, fileRejections, open } = useDropzone({
-    onDrop,
-    accept: { 'application/pdf': ['.pdf'] },
-    maxSize: MAX_SIZE_BYTES,
-    multiple: false,
-    disabled,
-    noClick: true,
-    noKeyboard: true,
-  });
-
-  const rejectionMessage =
-    fileRejections[0]?.errors[0]?.code === 'file-too-large'
-      ? t('manuals.upload.fileTooLarge')
-      : fileRejections[0]?.errors[0]?.code === 'file-invalid-type'
-        ? t('manuals.upload.invalidType')
-        : null;
+  const onDrop = (e: DragEvent<HTMLButtonElement>) => {
+    e.preventDefault();
+    setDragging(false);
+    accept(e.dataTransfer.files[0]);
+  };
 
   return (
-    <div className={className}>
-      <div
-        {...getRootProps()}
-        data-testid="dropzone"
-        className={cn(
-          'flex min-h-40 cursor-pointer flex-col items-center justify-center rounded-md border-2 border-dashed px-4 py-8 text-center transition-colors',
-          isDragActive
-            ? 'border-[hsl(217_91%_60%)] bg-[hsl(217_33%_12%)]'
-            : 'border-[hsl(217_33%_22%)] bg-[hsl(222_47%_6%)]',
-          disabled && 'pointer-events-none opacity-50',
-        )}
-        onClick={() => {
-          if (!disabled) {
-            open();
-          }
+    <div>
+      <button
+        type="button"
+        onClick={() => inputRef.current?.click()}
+        onDragOver={(e) => {
+          e.preventDefault();
+          setDragging(true);
         }}
+        onDragLeave={() => setDragging(false)}
+        onDrop={onDrop}
+        className={cn(
+          "flex w-full flex-col items-center justify-center gap-2 rounded-2xl border-2 border-dashed px-6 py-10 text-center transition-colors",
+          dragging ? "border-sky-500 bg-sky-500/5" : "border-slate-700 bg-slate-900/50",
+        )}
       >
-        <input {...getInputProps()} data-testid="dropzone-input" />
-        <p className="mb-2 text-sm text-[hsl(210_40%_98%)]">{t('manuals.upload.dropHint')}</p>
-        <p className="text-xs text-[hsl(215_20%_65%)]">{t('manuals.upload.dropSubhint')}</p>
-      </div>
-
-      {rejectionMessage ? (
-        <p className="mt-2 text-sm text-[hsl(0_84%_60%)]" role="alert">
-          {rejectionMessage}
-        </p>
-      ) : null}
+        <svg className="h-10 w-10 text-slate-500" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2}>
+          <path d="M12 16V4m0 0l-4 4m4-4l4 4" strokeLinecap="round" strokeLinejoin="round" />
+          <path d="M4 16v2a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-2" strokeLinecap="round" />
+        </svg>
+        {file ? (
+          <span className="text-sm font-medium text-slate-200">
+            {t("manuals.selected")}: {file.name}
+          </span>
+        ) : (
+          <>
+            <span className="text-sm font-medium text-slate-300">{t("manuals.dropzone")}</span>
+            <span className="text-xs text-slate-500">{t("manuals.dropzoneHint")}</span>
+          </>
+        )}
+      </button>
+      <input
+        ref={inputRef}
+        type="file"
+        accept="application/pdf,.pdf"
+        className="hidden"
+        onChange={(e) => accept(e.target.files?.[0])}
+      />
     </div>
   );
 }

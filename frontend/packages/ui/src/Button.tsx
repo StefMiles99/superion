@@ -1,36 +1,42 @@
-import type { ButtonHTMLAttributes, ReactNode } from 'react';
+import type { ButtonHTMLAttributes, ReactNode } from "react";
+import { cn } from "./cn";
 
-import { cn } from './cn';
+type Variant = "primary" | "ghost" | "danger" | "surface";
 
-export interface ButtonProps extends ButtonHTMLAttributes<HTMLButtonElement> {
-  children: ReactNode;
-  variant?: 'primary' | 'secondary' | 'ghost';
+interface ButtonProps extends ButtonHTMLAttributes<HTMLButtonElement> {
+  variant?: Variant;
+  fullWidth?: boolean;
+  icon?: ReactNode;
 }
 
+const VARIANTS: Record<Variant, string> = {
+  primary: "bg-sky-500 text-white active:bg-sky-600 disabled:bg-slate-700",
+  ghost: "bg-transparent text-slate-200 border border-slate-700 active:bg-slate-800",
+  danger: "bg-rose-500/90 text-white active:bg-rose-600",
+  surface: "bg-slate-800 text-slate-100 active:bg-slate-700",
+};
+
+/** Botón grande, táctil, estilizado. Base de la UX mobile-first. */
 export function Button({
-  children,
+  variant = "primary",
+  fullWidth = true,
+  icon,
   className,
-  variant = 'primary',
-  type = 'button',
-  ...props
+  children,
+  ...rest
 }: ButtonProps) {
   return (
     <button
-      type={type}
       className={cn(
-        'inline-flex min-h-12 min-w-12 items-center justify-center rounded-md px-4 py-2 text-sm font-medium transition-colors',
-        'focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[hsl(217_91%_60%)]',
-        'disabled:pointer-events-none disabled:opacity-50',
-        variant === 'primary' &&
-          'bg-[hsl(217_91%_60%)] text-[hsl(222_47%_6%)] hover:bg-[hsl(217_91%_55%)]',
-        variant === 'secondary' &&
-          'bg-[hsl(217_33%_17%)] text-[hsl(210_40%_98%)] hover:bg-[hsl(217_33%_22%)]',
-        variant === 'ghost' &&
-          'bg-transparent text-[hsl(210_40%_98%)] hover:bg-[hsl(217_33%_17%)]',
+        "inline-flex items-center justify-center gap-2 rounded-2xl px-6 py-4 text-lg font-semibold",
+        "transition-transform active:scale-[0.98] disabled:opacity-60",
+        fullWidth && "w-full",
+        VARIANTS[variant],
         className,
       )}
-      {...props}
+      {...rest}
     >
+      {icon}
       {children}
     </button>
   );

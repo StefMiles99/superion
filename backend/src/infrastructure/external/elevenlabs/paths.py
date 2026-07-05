@@ -16,4 +16,10 @@ def resolve_repo_relative_path(raw_path: str) -> Path:
     parent_path = Path.cwd().parent / candidate
     if parent_path.exists():
         return parent_path
+    if (
+        len(candidate.parts) >= 1
+        and candidate.parts[0] == "elevenlabs"
+        and (Path.cwd().parent / "elevenlabs").is_dir()
+    ):
+        return parent_path
     return cwd_path

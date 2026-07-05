@@ -1,38 +1,29 @@
-import { getApiClient } from '@superion/api-client';
-import type { ProcedureTemplate } from '@superion/domain';
-import { useQuery, useQueryClient } from '@tanstack/react-query';
+import { useMutation, useQueryClient } from "@tanstack/react-query";
+import { useServices } from "@/services/context";
+import { useSessionStore } from "@/stores/session";
 
-const STALE_TIME_MS = 10_000;
+export function useSessionControls(sessionId: string) {
+  const { api } = useServices();
+  const qc = useQueryClient();
+  const setStatus = useSessionStore((s) => s.setStatus);
 
-export function useSession(sessionId: string | undefined) {
-  return useQuery({
-    queryKey: ['session', sessionId],
-    queryFn: async () => {
-      const api = getApiClient();
-      return api.getSession(sessionId!);
-    },
-    enabled: Boolean(sessionId),
-    staleTime: STALE_TIME_MS,
+  const pause = useMutation({
+    mutationFn: () => api.pauseSession(sessionId),
+    onSuccess: () => setStatus("paused"),
   });
-}
 
-export function useSessionProcedure(sessionId: string | undefined) {
-  const queryClient = useQueryClient();
-
-  return useQuery({
-    queryKey: ['session', sessionId, 'procedure'],
-    queryFn: (): ProcedureTemplate => {
-      const cached = queryClient.getQueryData<ProcedureTemplate>([
-        'session',
-        sessionId,
-        'procedure',
-      ]);
-      if (!cached) {
-        throw new Error('Plantilla de procedimiento no disponible');
-      }
-      return cached;
-    },
-    enabled: Boolean(sessionId),
-    staleTime: Infinity,
+  const resume = useMutation({
+    mutationFn: () => api.resumeSession(sessionId),
+    onSuccess: () => setStatus("active"),
   });
+
+  const finalize = useMutation({
+    mutationFn: () => api.finalizeSession(sessionId),
+    onSuccess: () => {
+      setStatus("finalized");
+      void qc.invalidateQueries({ queryKey: ["work-orders"] });
+    },
+  });
+
+  return { pause, resume, finalize };
 }

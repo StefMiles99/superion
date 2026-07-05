@@ -1,51 +1,65 @@
-import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
-import { useTranslation } from 'react-i18next';
-import { RouterProvider } from 'react-router';
+import { Screen, Spinner } from "@superion/ui";
+import { lazy, Suspense } from "react";
+import { Navigate, Route, Routes } from "react-router-dom";
+import { RequireAuth } from "@/components/RequireAuth";
+import { useBootstrapAuth } from "@/hooks/useAuth";
 
-import { getEnv } from '@superion/config';
-import { ErrorBoundary, ThemeProvider } from '@superion/ui';
-import { Sentry } from '@superion/telemetry';
+// Code-splitting: cada página se carga bajo demanda.
+const LoginPage = lazy(() => import("@/pages/LoginPage"));
+const WorkOrdersPage = lazy(() => import("@/pages/WorkOrdersPage"));
+const WorkOrderDetailPage = lazy(() => import("@/pages/WorkOrderDetailPage"));
+const SessionPage = lazy(() => import("@/pages/SessionPage"));
+const ReportPage = lazy(() => import("@/pages/ReportPage"));
 
-import { PwaInstallPrompt } from './components/PwaInstallPrompt';
-import { router } from './routes';
-
-const queryClient = new QueryClient({
-  defaultOptions: {
-    queries: {
-      retry: false,
-    },
-    mutations: {
-      retry: false,
-    },
-  },
-});
-
-const env = getEnv();
-
-function AppProviders() {
-  const { t } = useTranslation();
-
+function Fallback() {
   return (
-    <ThemeProvider theme={env.VITE_DEFAULT_THEME}>
-      <ErrorBoundary
-        labels={{
-          title: t('errors.boundaryTitle'),
-          message: t('errors.boundaryMessage'),
-          reload: t('errors.boundaryReload'),
-        }}
-        onError={(error) => {
-          Sentry.captureException(error);
-        }}
-      >
-        <QueryClientProvider client={queryClient}>
-          <RouterProvider router={router} />
-          <PwaInstallPrompt />
-        </QueryClientProvider>
-      </ErrorBoundary>
-    </ThemeProvider>
+    <Screen className="items-center justify-center">
+      <Spinner />
+    </Screen>
   );
 }
 
 export function App() {
-  return <AppProviders />;
+  useBootstrapAuth();
+
+  return (
+    <Suspense fallback={<Fallback />}>
+      <Routes>
+        <Route path="/login" element={<LoginPage />} />
+        <Route
+          path="/work-orders"
+          element={
+            <RequireAuth>
+              <WorkOrdersPage />
+            </RequireAuth>
+          }
+        />
+        <Route
+          path="/work-orders/:id"
+          element={
+            <RequireAuth>
+              <WorkOrderDetailPage />
+            </RequireAuth>
+          }
+        />
+        <Route
+          path="/session/:id"
+          element={
+            <RequireAuth>
+              <SessionPage />
+            </RequireAuth>
+          }
+        />
+        <Route
+          path="/report/:id"
+          element={
+            <RequireAuth>
+              <ReportPage />
+            </RequireAuth>
+          }
+        />
+        <Route path="*" element={<Navigate to="/work-orders" replace />} />
+      </Routes>
+    </Suspense>
+  );
 }

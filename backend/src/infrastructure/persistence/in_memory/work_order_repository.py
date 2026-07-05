@@ -133,6 +133,22 @@ class InMemoryWorkOrderRepository:
                 notes="",
                 linked_wo_ids=(),
             ),
+            WorkOrder(
+                id="wo-007",
+                code="OT-1007",
+                asset_id="asset-7",
+                type="corrective",
+                priority="high",
+                status=WorkOrderStatus.PENDING,
+                assigned_to="tech-1",
+                planned_start=_dt(2026, 7, 5, 10),
+                planned_end=_dt(2026, 7, 5, 12),
+                procedure_template_id="tmpl-compresor",
+                created_at=_dt(2026, 7, 5, 8),
+                description="Servicio electro válvula hidráulica.",
+                notes="Manual RAG: electro valvula hidraulica.",
+                linked_wo_ids=(),
+            ),
         ]
         return cls(orders)
 

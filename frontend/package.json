@@ -1,33 +1,21 @@
 {
   "name": "superion-frontend",
   "private": true,
-  "type": "module",
+  "version": "0.1.0",
+  "description": "SUPERION frontend — monorepo (mobile voice-first)",
   "scripts": {
-    "dev": "turbo run dev",
-    "build": "turbo run build",
-    "test": "turbo run test",
-    "test:e2e": "playwright test",
-    "lint": "turbo run lint",
-    "typecheck": "turbo run typecheck"
+    "dev": "pnpm --filter @superion/mobile dev",
+    "build": "pnpm --filter @superion/mobile build",
+    "typecheck": "pnpm -r --if-present typecheck",
+    "test": "pnpm -r --if-present test"
   },
   "devDependencies": {
-    "@playwright/test": "^1.52.0",
-    "@types/node": "^22.15.3",
-    "turbo": "^2.5.4",
-    "typescript": "^5.8.3"
+    "@types/node": "^22.10.0",
+    "typescript": "^5.7.2",
+    "vitest": "^2.1.8"
   },
   "packageManager": "pnpm@10.11.0",
-  "engines": {
-    "node": ">=20"
-  },
   "pnpm": {
-    "onlyBuiltDependencies": [
-      "esbuild"
-    ]
-  },
-  "dependencies": {
-    "@axe-core/playwright": "^4.12.1",
-    "axe-core": "^4.12.1",
-    "vitest-axe": "^0.1.0"
+    "onlyBuiltDependencies": ["esbuild"]
   }
 }

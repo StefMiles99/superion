@@ -50,4 +50,6 @@ WS_APPENDED_TYPES = frozenset({
     EventType.MEASUREMENT.value,
     EventType.FINDING.value,
     EventType.COMMAND.value,
+    "utterance",
+    "observation",
 })

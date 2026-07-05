@@ -29,7 +29,7 @@ def build_conversation_config(
             "model_id": manifest.agent.tts_model,
         },
         "asr": {
-            "provider": "scribe",
+            "provider": "scribe_v2",
             "language": manifest.agent.language,
         },
         "turn": {

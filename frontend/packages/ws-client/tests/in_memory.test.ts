@@ -1,49 +1,41 @@
-import { describe, expect, it } from 'vitest';
+import { beforeEach, describe, expect, it } from "vitest";
+import { InMemoryApiClient, MockBackend } from "@superion/api-client";
+import type { WsEvent, WsStatus } from "@superion/domain";
+import { InMemoryWsClient } from "../src/in_memory";
 
-import type { WsEvent } from '@superion/domain';
+describe("InMemoryWsClient", () => {
+  let backend: MockBackend;
 
-import { InMemoryWsClient } from '../src/in_memory';
-
-describe('InMemoryWsClient', () => {
-  it('delivers emitted events to subscribers', async () => {
-    const client = new InMemoryWsClient();
-    const received: WsEvent[] = [];
-
-    await client.connect('sess-1', 'token-1');
-    client.subscribe('*', (event) => {
-      received.push(event);
-    });
-
-    const event: WsEvent = { type: 'session.started', payload: { id: 'sess-1' } };
-    client.emit!(event);
-
-    expect(received).toHaveLength(1);
-    expect(received[0]).toEqual(event);
+  beforeEach(() => {
+    backend = MockBackend.shared();
+    backend.reset();
   });
 
-  it('unsubscribes handler when cleanup is called', async () => {
-    const client = new InMemoryWsClient();
-    const received: WsEvent[] = [];
+  it("reproduce eventos previos al suscribirse (replay por lastSeq)", async () => {
+    const api = new InMemoryApiClient(backend);
+    const start = await api.startSession("wo-001");
 
-    await client.connect('sess-1', 'token-1');
-    const unsubscribe = client.subscribe('*', (event) => {
-      received.push(event);
+    const events: WsEvent[] = [];
+    const statuses: WsStatus[] = [];
+    const ws = new InMemoryWsClient(backend);
+    const sub = ws.subscribe(start.session_id, 0, {
+      onEvent: (e) => events.push(e),
+      onStatus: (s) => statuses.push(s),
     });
-    unsubscribe();
 
-    client.emit!({ type: 'ping', payload: null });
-    expect(received).toHaveLength(0);
+    expect(statuses).toEqual(["connecting", "open"]);
+    expect(events.map((e) => e.type)).toEqual(["session.started", "step.entered"]);
+
+    sub.close();
+    expect(statuses.at(-1)).toBe("closed");
   });
 
-  it('does not emit when disconnected', async () => {
-    const client = new InMemoryWsClient();
-    const received: WsEvent[] = [];
-
-    client.subscribe('*', (event) => {
-      received.push(event);
-    });
-    client.emit!({ type: 'ping', payload: null });
-
-    expect(received).toHaveLength(0);
+  it("no reproduce eventos ya vistos si lastSeq es mayor", async () => {
+    const api = new InMemoryApiClient(backend);
+    const start = await api.startSession("wo-001");
+    const events: WsEvent[] = [];
+    const ws = new InMemoryWsClient(backend);
+    ws.subscribe(start.session_id, 2, { onEvent: (e) => events.push(e) });
+    expect(events).toHaveLength(0);
   });
 });

@@ -82,15 +82,21 @@ class ElevenLabsSdkProvisioner:
                 platform_settings=platform_settings,
                 tags=manifest.agent.tags,
             )
-            return agent_id
+            resolved_agent_id = agent_id
+        else:
+            created = await client.conversational_ai.agents.create(
+                name=manifest.agent.name,
+                conversation_config=conversation_config,
+                platform_settings=platform_settings,
+                tags=manifest.agent.tags,
+            )
+            resolved_agent_id = created.agent_id
+        return resolved_agent_id
 
-        created = await client.conversational_ai.agents.create(
-            name=manifest.agent.name,
-            conversation_config=conversation_config,
-            platform_settings=platform_settings,
-            tags=manifest.agent.tags,
-        )
-        return created.agent_id
+    async def resolve_main_branch_id(self, agent_id: str) -> str:
+        client = self._client()
+        agent = await client.conversational_ai.agents.get(agent_id=agent_id)
+        return agent.main_branch_id
 
     async def deploy(
         self,
@@ -109,7 +115,10 @@ class ElevenLabsSdkProvisioner:
             AgentDeploymentRequestItem,
         )
 
-        resolved_branch = branch_id or "main"
+        resolved_branch = branch_id
+        if not resolved_branch or resolved_branch == "main":
+            agent_meta = await client.conversational_ai.agents.get(agent_id=agent_id)
+            resolved_branch = agent_meta.main_branch_id
         await client.conversational_ai.agents.deployments.create(
             agent_id=agent_id,
             deployment_request=AgentDeploymentRequest(
@@ -118,7 +127,7 @@ class ElevenLabsSdkProvisioner:
                         branch_id=resolved_branch,
                         deployment_strategy=AgentDeploymentPercentageStrategy(
                             type="percentage",
-                            traffic_percentage=traffic_percentage,
+                            traffic_percentage=traffic_percentage * 100,
                         ),
                     )
                 ],

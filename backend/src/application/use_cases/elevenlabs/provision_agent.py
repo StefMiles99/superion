@@ -52,9 +52,14 @@ class ProvisionAgentUseCase:
             tool_ids=tool_ids,
             agent_id=existing_agent_id,
         )
+        branch_id = existing.branch_id if existing and existing.branch_id else ""
+        if not branch_id:
+            resolve_branch = getattr(self._provisioner, "resolve_main_branch_id", None)
+            if resolve_branch is not None:
+                branch_id = await resolve_branch(agent_id)
         state = ProvisionState(
             agent_id=agent_id,
-            branch_id=existing.branch_id if existing else "",
+            branch_id=branch_id,
             tool_ids=tool_ids,
             environment=manifest.deployment.environment,
             status=ProvisionStatus.SYNCED,

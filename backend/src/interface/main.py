@@ -9,8 +9,10 @@ from fastapi import FastAPI
 from application.dto.error_envelope import COMMON_ERROR_RESPONSES
 from infrastructure.config import Settings
 from infrastructure.factories import ensure_build_live_started, set_settings
+from infrastructure.persistence.supabase.bootstrap import maybe_bootstrap_on_startup
 from infrastructure.observability.logging import configure_logging
 from interface.http.exception_handlers import register_exception_handlers
+from interface.http.middleware.cors import build_cors_middleware
 from interface.http.middleware.correlation import CorrelationMiddleware
 from interface.http.middleware.logging import LoggingMiddleware
 from interface.http.middleware.rate_limit import RateLimitMiddleware
@@ -43,6 +45,7 @@ def create_app(settings: Settings | None = None) -> FastAPI:
 
     @asynccontextmanager
     async def lifespan(_app: FastAPI):
+        await maybe_bootstrap_on_startup(cfg)
         await ensure_build_live_started()
         yield
 
@@ -78,7 +81,7 @@ def create_app(settings: Settings | None = None) -> FastAPI:
     app.include_router(admin_elevenlabs.router)
     app.include_router(ws_router)
 
-    return app
+    return build_cors_middleware(app, allowed_origins=cfg.cors_origin_list())
 
 
 app = create_app()

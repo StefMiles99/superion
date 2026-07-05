@@ -131,6 +131,7 @@ async def test_voice_flow_e2e(client: AsyncClient) -> None:
     types_after_advance = [item["type"] for item in events_after_advance.json()["items"]]
     assert "step.completed" in types_after_advance
     assert "tool.called" in types_after_advance
+    assert "utterance" in types_after_advance
 
     query_payload = json.dumps(
         {
@@ -146,6 +147,20 @@ async def test_voice_flow_e2e(client: AsyncClient) -> None:
     )
     assert query_resp.status_code == 200
 
+    narration_payload = json.dumps(
+        {
+            "event": "utterance.final",
+            "session_id": session_id,
+            "text": "ya cerré la válvula V-12 con el candado",
+        }
+    )
+    narration_resp = await client.post(
+        "/v1/elevenlabs/webhooks/conversation",
+        headers=_sign_payload(narration_payload),
+        content=narration_payload,
+    )
+    assert narration_resp.status_code == 200
+
     events = (
         await client.get(
             f"/v1/sessions/{session_id}/events",
@@ -156,6 +171,7 @@ async def test_voice_flow_e2e(client: AsyncClient) -> None:
     query_types = [event["type"] for event in events]
     assert "assistant.answering" in query_types
     assert "tool.called" in query_types
+    assert "observation" in query_types
     answer = next(event for event in events if event["type"] == "assistant.answered")
     assert "torque" in answer["payload"]["answer_text"].lower()
     assert len(answer["payload"]["citations"]) > 0

@@ -84,7 +84,12 @@ class BuildLiveReportUseCase:
             if not isinstance(payload, dict):
                 return
             inner_type = str(payload.get("type", ""))
-            if inner_type not in (EventType.FINDING.value, EventType.MEASUREMENT.value):
+            if inner_type not in (
+                EventType.FINDING.value,
+                EventType.MEASUREMENT.value,
+                "utterance",
+                "observation",
+            ):
                 return
             step_index = int(payload.get("step_index", 0))
         elif event_type == EventType.PHOTO.value:

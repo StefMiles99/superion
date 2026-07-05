@@ -1,24 +1,11 @@
 {
-  "name": "SUPERION Mobile",
+  "name": "SUPERION",
   "short_name": "SUPERION",
-  "description": "App móvil para técnicos de mantenimiento",
+  "description": "Asistente de mantenimiento por voz",
   "start_url": "/",
   "display": "standalone",
-  "background_color": "#0b1220",
-  "theme_color": "#3b82f6",
-  "lang": "es-ES",
-  "icons": [
-    {
-      "src": "/icon-192.png",
-      "sizes": "192x192",
-      "type": "image/png",
-      "purpose": "any"
-    },
-    {
-      "src": "/icon-512.png",
-      "sizes": "512x512",
-      "type": "image/png",
-      "purpose": "any maskable"
-    }
-  ]
+  "orientation": "portrait",
+  "background_color": "#020617",
+  "theme_color": "#020617",
+  "icons": []
 }

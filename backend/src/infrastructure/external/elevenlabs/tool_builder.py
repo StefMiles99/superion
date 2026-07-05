@@ -37,8 +37,8 @@ def _to_object_json_schema(parameters: dict[str, Any]):
         )
     return ObjectJsonSchemaPropertyInput(
         type="object",
-        properties=properties or None,
-        required=parameters.get("required"),
+        properties=properties,
+        required=parameters.get("required") or [],
     )
 
 

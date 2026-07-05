@@ -1,36 +1,38 @@
-import i18n from 'i18next';
-import { initReactI18next } from 'react-i18next';
+import i18n from "i18next";
+import { initReactI18next } from "react-i18next";
+import { en } from "./locales/en";
+import { es, type Resources } from "./locales/es";
 
-import en from './locales/en.json';
-import es from './locales/es.json';
+export const defaultNS = "translation";
 
-export function initI18n(locale = 'es-ES'): typeof i18n {
-  const language = locale.startsWith('es') ? 'es' : 'en';
+export const resources = {
+  "es-ES": { translation: es },
+  "en-US": { translation: en },
+} as const;
 
+export function setupI18n(locale = "es-ES"): typeof i18n {
   if (!i18n.isInitialized) {
     void i18n.use(initReactI18next).init({
-      resources: {
-        es: { translation: es },
-        en: { translation: en },
-      },
-      lng: language,
-      fallbackLng: 'es',
+      resources,
+      lng: locale,
+      fallbackLng: "es-ES",
+      defaultNS,
       interpolation: { escapeValue: false },
     });
   } else {
-    void i18n.changeLanguage(language);
+    void i18n.changeLanguage(locale);
   }
-
   return i18n;
 }
 
-export function formatDate(value: Date | string, locale = 'es-ES'): string {
-  const date = typeof value === 'string' ? new Date(value) : value;
-  return new Intl.DateTimeFormat(locale).format(date);
+// Tipado fuerte de claves para useTranslation.
+declare module "i18next" {
+  interface CustomTypeOptions {
+    defaultNS: "translation";
+    resources: { translation: Resources };
+  }
 }
 
-export function formatNumber(value: number, locale = 'es-ES'): string {
-  return new Intl.NumberFormat(locale).format(value);
-}
-
-export { i18n };
+export { useTranslation, Trans } from "react-i18next";
+export type { Resources };
+export default i18n;

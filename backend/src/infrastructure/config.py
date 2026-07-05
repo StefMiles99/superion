@@ -68,6 +68,8 @@ class Settings(BaseSettings):
     # Dependencias externas (ready check cuando mode != memory/mock)
     SUPABASE_URL: str = ""
     SUPABASE_SERVICE_ROLE_KEY: str = ""
+    SUPABASE_STORAGE_BUCKET: str = "superion"
+    DATABASE_URL: str = ""
     OPENROUTER_API_KEY: str = ""
     ELEVENLABS_API_KEY: str = ""
     LANGGRAPH_URL: str = ""
@@ -80,3 +82,22 @@ class Settings(BaseSettings):
     ELEVENLABS_VOICE_ID: str = "JBFqnCBsd6RMkjVDRZzb"
     ELEVENLABS_CONNECT_MODE: Literal["signed_url", "webrtc"] = "signed_url"
     DEPLOY_ENV: str = "dev"
+
+    # Bootstrap Postgres al arrancar (Cloud Run / Supabase)
+    DB_AUTO_MIGRATE: bool = True
+    DB_AUTO_SEED: bool = True
+    DB_RESET_ON_STARTUP: bool = False
+
+    # Cloud Run / producción
+    CORS_ORIGINS: str = ""
+    PDF_EXTRACTOR: Literal["mock", "pypdf"] = "mock"
+    REDIS_URL: str = ""
+    OPENROUTER_LLM_MODEL: str = "google/gemini-2.0-flash-001"
+    OPENROUTER_EMBEDDING_MODEL: str = "openai/text-embedding-3-small"
+    OPENROUTER_VLM_MODEL: str = "google/gemini-2.0-flash-001"
+    OPENROUTER_RERANKER_MODEL: str = "google/gemini-2.0-flash-001"
+
+    def cors_origin_list(self) -> list[str]:
+        if not self.CORS_ORIGINS.strip():
+            return []
+        return [origin.strip() for origin in self.CORS_ORIGINS.split(",") if origin.strip()]

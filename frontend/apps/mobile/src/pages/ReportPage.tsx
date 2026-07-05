@@ -1,165 +1,49 @@
-import { useEffect, useId, useState } from 'react';
-import { useTranslation } from 'react-i18next';
-import { useNavigate, useParams } from 'react-router';
-
-import { AppShell, Button, Skeleton } from '@superion/ui';
-
-import { DownloadPdfButton } from '../components/DownloadPdfButton';
-import { ErrorBanner } from '../components/ErrorBanner';
-import { ReportFindings } from '../components/ReportFindings';
-import { ReportPhotoGallery } from '../components/ReportPhotoGallery';
-import { ReportStepList } from '../components/ReportStepList';
-import { ReportSummary } from '../components/ReportSummary';
-import { useFinalizeSession } from '../hooks/useFinalizeSession';
-import { useReport } from '../hooks/useReport';
-import { useSession } from '../hooks/useSession';
-
-function ReportPageSkeleton() {
-  return (
-    <div className="space-y-4 p-4" data-testid="report-skeleton">
-      <Skeleton height="8rem" className="w-full" />
-      <Skeleton height="12rem" className="w-full" />
-    </div>
-  );
-}
+import { useTranslation } from "@superion/i18n";
+import { Button, Screen } from "@superion/ui";
+import { useState } from "react";
+import { useNavigate, useParams } from "react-router-dom";
+import { useServices } from "@/services/context";
 
 export default function ReportPage() {
   const { t } = useTranslation();
+  const { id = "" } = useParams();
   const navigate = useNavigate();
-  const { id: sessionId } = useParams<{ id: string }>();
-  const confirmTitleId = useId();
+  const { api } = useServices();
+  const [downloading, setDownloading] = useState(false);
 
-  const { data: session } = useSession(sessionId);
-  const { data: report, error, isLoading, refetch } = useReport(sessionId);
-  const finalizeSession = useFinalizeSession(sessionId);
-  const [confirmOpen, setConfirmOpen] = useState(false);
-
-  const isFinalized = report?.status === 'finalized' || session?.status === 'finalized';
-  const pdfFilename = report
-    ? `${report.content.header.otCode}-reporte.pdf`
-    : 'reporte.pdf';
-
-  useEffect(() => {
-    if (!confirmOpen) {
-      return;
+  const download = async () => {
+    setDownloading(true);
+    try {
+      const blob = await api.reportPdf(id);
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement("a");
+      a.href = url;
+      a.download = `reporte-${id}.pdf`;
+      a.click();
+      URL.revokeObjectURL(url);
+    } finally {
+      setDownloading(false);
     }
-
-    const handleKeyDown = (event: KeyboardEvent) => {
-      if (event.key === 'Escape') {
-        setConfirmOpen(false);
-      }
-    };
-
-    document.addEventListener('keydown', handleKeyDown);
-    return () => {
-      document.removeEventListener('keydown', handleKeyDown);
-    };
-  }, [confirmOpen]);
-
-  const handleConfirmFinalize = () => {
-    finalizeSession.mutate(undefined, {
-      onSuccess: () => {
-        setConfirmOpen(false);
-      },
-    });
   };
 
   return (
-    <AppShell
-      title={t('report.title')}
-      backLabel={t('report.back')}
-      onBack={() => {
-        navigate(`/sessions/${sessionId ?? ''}`);
-      }}
-    >
-      {isLoading ? <ReportPageSkeleton /> : null}
+    <Screen className="items-center justify-center text-center">
+      <div className="mb-8 flex h-24 w-24 items-center justify-center rounded-full bg-emerald-500/20">
+        <svg className="h-12 w-12 text-emerald-400" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2}>
+          <path d="M5 13l4 4L19 7" strokeLinecap="round" strokeLinejoin="round" />
+        </svg>
+      </div>
+      <h1 className="text-3xl font-bold text-white">{t("report.title")}</h1>
+      <p className="mt-2 text-slate-400">{t("report.subtitle")}</p>
 
-      {error ? (
-        <div className="p-4">
-          <ErrorBanner
-            message={t('report.errorLoading')}
-            retryLabel={t('workOrders.retry')}
-            onRetry={() => {
-              void refetch();
-            }}
-          />
-        </div>
-      ) : null}
-
-      {report ? (
-        <div className="space-y-4 p-4 pb-24" data-testid="report-page">
-          <ReportSummary content={report.content} />
-          <ReportStepList steps={report.content.procedure} />
-          <ReportFindings findings={report.content.findings} />
-          <ReportPhotoGallery photos={report.content.photosGallery} />
-
-          <div
-            className="fixed inset-x-0 bottom-0 border-t border-[hsl(217_33%_17%)] bg-[hsl(222_47%_6%)] p-4"
-            aria-live="polite"
-          >
-            {isFinalized ? (
-              <DownloadPdfButton sessionId={sessionId!} filename={pdfFilename} />
-            ) : (
-              <Button
-                type="button"
-                className="min-h-14 w-full text-base"
-                onClick={() => {
-                  setConfirmOpen(true);
-                }}
-                disabled={finalizeSession.isPending}
-              >
-                {t('report.finalize')}
-              </Button>
-            )}
-          </div>
-        </div>
-      ) : null}
-
-      {confirmOpen ? (
-        <div className="fixed inset-0 z-50 flex items-end justify-center" data-testid="finalize-confirm">
-          <div
-            role="presentation"
-            className="absolute inset-0 bg-[hsl(222_47%_6%/0.72)]"
-            onClick={() => {
-              setConfirmOpen(false);
-            }}
-          />
-          <div
-            role="dialog"
-            aria-modal="true"
-            aria-labelledby={confirmTitleId}
-            className="relative z-10 w-full max-w-lg rounded-t-2xl border border-[hsl(217_33%_17%)] bg-[hsl(222_47%_8%)] p-4 shadow-xl"
-          >
-            <h2 id={confirmTitleId} className="text-lg font-semibold text-[hsl(210_40%_98%)]">
-              {t('report.finalizeConfirmTitle')}
-            </h2>
-            <p className="mt-2 text-sm text-[hsl(215_20%_75%)]">
-              {t('report.finalizeConfirmBody')}
-            </p>
-            <div className="mt-4 grid grid-cols-2 gap-3">
-              <Button
-                type="button"
-                variant="ghost"
-                className="min-h-12"
-                onClick={() => {
-                  setConfirmOpen(false);
-                }}
-              >
-                {t('report.finalizeCancel')}
-              </Button>
-              <Button
-                type="button"
-                className="min-h-12"
-                onClick={handleConfirmFinalize}
-                disabled={finalizeSession.isPending}
-                aria-busy={finalizeSession.isPending}
-              >
-                {t('report.finalizeConfirm')}
-              </Button>
-            </div>
-          </div>
-        </div>
-      ) : null}
-    </AppShell>
+      <div className="mt-10 flex w-full flex-col gap-3">
+        <Button onClick={() => void download()} disabled={downloading}>
+          {downloading ? t("report.downloading") : t("report.download")}
+        </Button>
+        <Button variant="ghost" onClick={() => navigate("/work-orders", { replace: true })}>
+          {t("report.backToOrders")}
+        </Button>
+      </div>
+    </Screen>
   );
 }

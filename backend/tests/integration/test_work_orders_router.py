@@ -115,11 +115,11 @@ async def test_start_session_returns_201(client: AsyncClient) -> None:
     assert len(body["procedure_template"]["steps"]) == 12
 
 
-async def test_start_session_twice_returns_409(client: AsyncClient) -> None:
+async def test_start_session_twice_returns_same_session(client: AsyncClient) -> None:
     token = await _login(client)
     headers = {"Authorization": f"Bearer {token}"}
     first = await client.post("/v1/work-orders/wo-002/start", headers=headers)
     assert first.status_code == 201
     second = await client.post("/v1/work-orders/wo-002/start", headers=headers)
-    assert second.status_code == 409
-    assert second.json()["error"]["code"] == "WORK_ORDER_ALREADY_STARTED"
+    assert second.status_code == 201
+    assert second.json()["session_id"] == first.json()["session_id"]

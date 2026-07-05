@@ -73,6 +73,15 @@ class InMemoryAssetRepository:
                 manufacturer="Emerson",
                 current_manual_id="manual-valv-1",
             ),
+            Asset(
+                id="asset-7",
+                plant_id="plant-1",
+                tag="VALV-EH",
+                name="Electro válvula hidráulica",
+                model="electro valvula hidraulica",
+                manufacturer="Vickers",
+                current_manual_id=None,
+            ),
         ]
         return cls(assets)
 

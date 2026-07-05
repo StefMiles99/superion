@@ -80,11 +80,11 @@ async def test_start_session_already_completed(
     assert exc_info.value.code == "WORK_ORDER_ALREADY_COMPLETED"
 
 
-async def test_start_session_twice_returns_conflict(
+async def test_start_session_twice_resumes_same_session(
     juan: User,
     use_case: StartSessionUseCase,
 ) -> None:
-    await use_case.execute(work_order_id="wo-001", current_user=juan)
-    with pytest.raises(ConflictError) as exc_info:
-        await use_case.execute(work_order_id="wo-001", current_user=juan)
-    assert exc_info.value.code == "WORK_ORDER_ALREADY_STARTED"
+    first = await use_case.execute(work_order_id="wo-001", current_user=juan)
+    second = await use_case.execute(work_order_id="wo-001", current_user=juan)
+    assert second.session_id == first.session_id
+    assert len(second.procedure_template.steps) == 12

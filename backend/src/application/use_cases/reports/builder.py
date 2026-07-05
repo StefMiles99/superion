@@ -79,6 +79,16 @@ class ReportBuilder:
                 if status == "accepted":
                     feedback = str(event.payload.get("feedback", ""))
                     step_observations.setdefault(event.step_index, []).append(feedback)
+            elif event.type == "utterance":
+                speaker = str(event.payload.get("speaker", "technician"))
+                if speaker == "technician":
+                    text = str(event.payload.get("text", ""))
+                    if text:
+                        step_observations.setdefault(event.step_index, []).append(text)
+            elif event.type == "observation":
+                text = str(event.payload.get("text", ""))
+                if text:
+                    step_observations.setdefault(event.step_index, []).append(text)
 
         accepted_photos = [
             photo for photo in photos if photo.validation_status == PhotoStatus.ACCEPTED

@@ -1,87 +1,56 @@
-import { useEffect, useId, useState } from 'react';
-import { useTranslation } from 'react-i18next';
-import { useNavigate } from 'react-router';
-
-import { useLogin, useLoginRedirectPath } from '@superion/auth';
-import { getDefaultRouteForRole, AuthError } from '@superion/domain';
-import { Button, Card, Form, Input, Label } from '@superion/ui';
+import { useTranslation } from "@superion/i18n";
+import { Button, Screen } from "@superion/ui";
+import { useState, type FormEvent } from "react";
+import { useLogin } from "@/hooks/useAuth";
 
 export default function LoginPage() {
   const { t } = useTranslation();
-  const navigate = useNavigate();
   const login = useLogin();
-  const redirectPath = useLoginRedirectPath();
-  const emailId = useId();
-  const passwordId = useId();
-  const errorId = useId();
+  const [email, setEmail] = useState("juan@planta.com");
+  const [password, setPassword] = useState("test1234");
 
-  const [email, setEmail] = useState('');
-  const [password, setPassword] = useState('');
-  const [errorMessage, setErrorMessage] = useState<string | null>(null);
-
-  useEffect(() => {
-    if (redirectPath) {
-      navigate(redirectPath, { replace: true });
-    }
-  }, [navigate, redirectPath]);
-
-  const handleSubmit = async (event: React.FormEvent<HTMLFormElement>) => {
-    event.preventDefault();
-    setErrorMessage(null);
-
-    try {
-      const session = await login.mutateAsync({ email, password });
-      navigate(getDefaultRouteForRole(session.user.role), { replace: true });
-    } catch (error) {
-      if (error instanceof AuthError) {
-        setErrorMessage(t('auth.errorInvalidCredentials'));
-        return;
-      }
-      setErrorMessage(t('auth.errorGeneric'));
-    }
+  const submit = (e: FormEvent) => {
+    e.preventDefault();
+    login.mutate({ email, password });
   };
 
   return (
-    <main className="flex min-h-screen items-center justify-center p-4">
-      <Card className="w-full max-w-md">
-        <h1 className="mb-6 text-center text-2xl font-bold">{t('auth.title')}</h1>
-        <Form onSubmit={handleSubmit} aria-describedby={errorMessage ? errorId : undefined}>
-          <div>
-            <Label htmlFor={emailId}>{t('auth.email')}</Label>
-            <Input
-              id={emailId}
-              name="email"
-              type="email"
-              autoComplete="email"
-              required
-              value={email}
-              onChange={(event) => setEmail(event.target.value)}
-              hasError={Boolean(errorMessage)}
-            />
-          </div>
-          <div>
-            <Label htmlFor={passwordId}>{t('auth.password')}</Label>
-            <Input
-              id={passwordId}
-              name="password"
-              type="password"
-              autoComplete="current-password"
-              required
-              value={password}
-              onChange={(event) => setPassword(event.target.value)}
-              hasError={Boolean(errorMessage)}
-            />
-          </div>
-          {errorMessage ? (
-            <p id={errorId} role="alert" className="text-sm text-[hsl(0_72%_51%)]">
-              {errorMessage}
-            </p>
-          ) : null}
-          <Button type="submit" disabled={login.isPending} className="w-full">
-            {login.isPending ? t('common.loading') : t('auth.submit')}
-          </Button>
-        </Form>
-      </Card>
-    </main>
+    <Screen className="justify-center">
+      <div className="mb-10 text-center">
+        <h1 className="text-4xl font-black tracking-tight text-sky-400">{t("common.appName")}</h1>
+        <p className="mt-2 text-slate-400">{t("login.subtitle")}</p>
+      </div>
+
+      <form onSubmit={submit} className="flex flex-col gap-4">
+        <label className="flex flex-col gap-1 text-sm text-slate-400">
+          {t("login.email")}
+          <input
+            type="email"
+            autoComplete="email"
+            value={email}
+            onChange={(e) => setEmail(e.target.value)}
+            className="rounded-2xl bg-slate-900 px-4 py-4 text-lg text-white ring-1 ring-slate-800 outline-none focus:ring-sky-500"
+          />
+        </label>
+        <label className="flex flex-col gap-1 text-sm text-slate-400">
+          {t("login.password")}
+          <input
+            type="password"
+            autoComplete="current-password"
+            value={password}
+            onChange={(e) => setPassword(e.target.value)}
+            className="rounded-2xl bg-slate-900 px-4 py-4 text-lg text-white ring-1 ring-slate-800 outline-none focus:ring-sky-500"
+          />
+        </label>
+
+        {login.isError && <p className="text-sm text-rose-400">{t("login.error")}</p>}
+
+        <Button type="submit" disabled={login.isPending}>
+          {login.isPending ? t("common.loading") : t("login.submit")}
+        </Button>
+      </form>
+
+      <p className="mt-6 text-center text-xs text-slate-600">{t("login.demoHint")}</p>
+    </Screen>
   );
 }

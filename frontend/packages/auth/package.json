@@ -1,34 +1,27 @@
 {
   "name": "@superion/auth",
-  "version": "0.0.0",
-  "private": true,
+  "version": "0.1.0",
   "type": "module",
+  "main": "./src/index.ts",
+  "types": "./src/index.ts",
   "exports": {
     ".": "./src/index.ts"
   },
   "scripts": {
-    "test": "vitest run",
     "typecheck": "tsc --noEmit",
-    "lint": "echo 'lint ok'"
+    "test": "vitest run"
   },
   "dependencies": {
-    "@superion/api-client": "workspace:*",
     "@superion/domain": "workspace:*",
-    "@tanstack/react-query": "^5.80.6",
-    "react": "^19.1.0",
-    "zustand": "^5.0.5"
+    "zustand": "^5.0.2"
   },
   "peerDependencies": {
-    "react": "^19.0.0",
-    "react-router": "^7.0.0"
+    "react": "^19.0.0"
   },
   "devDependencies": {
-    "@testing-library/react": "^16.3.0",
-    "@types/react": "^19.1.4",
-    "jsdom": "^26.1.0",
-    "react-dom": "^19.1.0",
-    "react-router": "^7.6.1",
-    "typescript": "^5.8.3",
-    "vitest": "^3.2.1"
+    "@types/react": "^19.0.0",
+    "react": "^19.0.0",
+    "typescript": "^5.7.2",
+    "vitest": "^2.1.8"
   }
 }
