@@ -89,6 +89,24 @@ describe('InMemoryApiClient auth', () => {
     await expect(client.me()).rejects.toThrow(AuthError);
   });
 
+  it('setTokens restores current user from access token', async () => {
+    const client = new InMemoryApiClient();
+    client.setClock(() => fixedNow);
+
+    const login = await client.login({
+      email: 'admin@planta.com',
+      password: 'test1234',
+    });
+
+    client.setTokens(null);
+    await expect(client.me()).rejects.toThrow(AuthError);
+
+    client.setTokens(login.accessToken, login.refreshToken);
+    const me = await client.me();
+    expect(me.email).toBe('admin@planta.com');
+    expect(me.role).toBe('rag_admin');
+  });
+
   it('createMockJwt signature is base64 of mock-signature', () => {
     const token = createMockJwt(
       {

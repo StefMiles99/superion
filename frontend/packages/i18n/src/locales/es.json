@@ -251,7 +251,88 @@
   },
   "manuals": {
     "title": "Manuales",
-    "placeholder": "Biblioteca de manuales (próximamente)"
+    "placeholder": "Biblioteca de manuales (próximamente)",
+    "uploadButton": "Subir manual",
+    "empty": "No hay manuales que coincidan con los filtros.",
+    "errorLoading": "No se pudo cargar la biblioteca de manuales.",
+    "confirmArchive": "¿Archivar «{{title}}»? El manual dejará de estar activo.",
+    "confirmCancel": "Cancelar",
+    "confirmSubmit": "Confirmar",
+    "filters": {
+      "all": "Todos",
+      "active": "Activos",
+      "indexing": "Indexando",
+      "archived": "Archivados",
+      "error": "Con error",
+      "status": "Estado",
+      "search": "Buscar",
+      "searchPlaceholder": "Título o modelo…"
+    },
+    "columns": {
+      "title": "Título",
+      "model": "Modelo",
+      "version": "Versión",
+      "status": "Estado",
+      "chunks": "Chunks",
+      "uploadedAt": "Subido",
+      "author": "Autor",
+      "actions": "Acciones"
+    },
+    "status": {
+      "active": "Activo",
+      "archived": "Archivado",
+      "indexing": "Indexando",
+      "indexed": "Indexado",
+      "failed": "Fallido",
+      "error": "Error"
+    },
+    "actions": {
+      "reindex": "Reindexar",
+      "download": "Descargar",
+      "archive": "Archivar",
+      "restore": "Restaurar",
+      "restoreNotAvailable": "Restaurar no está disponible en el backend"
+    },
+    "toast": {
+      "archived": "Manual archivado",
+      "reindexStarted": "Reindexación iniciada",
+      "downloadMock": "Descarga simulada (mock)",
+      "downloadError": "No se pudo descargar el manual"
+    },
+    "upload": {
+      "title": "Subir manual",
+      "back": "Volver a manuales",
+      "dropHint": "Arrastra un PDF aquí o haz clic para seleccionar",
+      "dropSubhint": "Solo PDF, máximo 50 MB",
+      "invalidType": "Solo se aceptan archivos PDF",
+      "fileTooLarge": "El archivo supera 50 MB",
+      "titleLabel": "Título",
+      "modelLabel": "Modelo de activo",
+      "selectedFile": "Archivo seleccionado: {{name}}",
+      "fileRequired": "Selecciona un archivo PDF",
+      "fieldsRequired": "Completa título y modelo",
+      "submit": "Subir",
+      "cancel": "Cancelar",
+      "viewManual": "Ver manual",
+      "progress": {
+        "pending": "Pendiente",
+        "uploading": "Subiendo…",
+        "indexing": "Indexando…",
+        "indexed": "Indexado",
+        "error": "Error"
+      }
+    },
+    "detail": {
+      "title": "Detalle del manual",
+      "back": "Volver a manuales",
+      "previewPlaceholder": "Vista previa del PDF (mock — en producción se usa URL firmada)",
+      "searchLabel": "Búsqueda en el manual",
+      "searchPlaceholder": "Buscar texto…",
+      "searchHint": "Escribe al menos una palabra para buscar en el manual.",
+      "searchEmpty": "Sin resultados para esta búsqueda.",
+      "chunks": "{{count}} chunks indexados",
+      "errorLoading": "No se pudo cargar el manual."
+    }
   },
   "common": {
     "loading": "Cargando…"

@@ -48,6 +48,7 @@ export const useAuthStore = create<AuthState>()(
         if (!valid) {
           state.session = null;
         }
+        syncApiTokensFromSession();
       },
     },
   ),

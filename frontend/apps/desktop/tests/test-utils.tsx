@@ -9,10 +9,10 @@ import {
   RouterProvider,
 } from 'react-router';
 
-import { resetApiClient } from '@superion/api-client';
+import { resetApiClient, getApiClient, InMemoryApiClient } from '@superion/api-client';
 import { useAuthStore } from '@superion/auth';
 import { initI18n } from '@superion/i18n';
-import { resetWsClient } from '@superion/ws-client';
+import { getWsClient, resetWsClient } from '@superion/ws-client';
 
 export function createTestQueryClient() {
   return new QueryClient({
@@ -31,6 +31,14 @@ export function renderWithProviders(
   useAuthStore.setState({ session: null, isAuthenticated: false });
   resetApiClient();
   resetWsClient();
+
+  const api = getApiClient();
+  const ws = getWsClient();
+  if (api instanceof InMemoryApiClient && typeof ws.emit === 'function') {
+    api.setPhotoEventEmitter((event) => {
+      ws.emit?.(event);
+    });
+  }
 
   const queryClient = createTestQueryClient();
   const router = createMemoryRouter(routes, { initialEntries });

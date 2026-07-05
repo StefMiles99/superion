@@ -1,4 +1,5 @@
 export * from './entities/assistant';
+export * from './entities/manual';
 export * from './entities/auth';
 export * from './entities/photo';
 export * from './entities/report';
