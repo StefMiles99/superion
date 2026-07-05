@@ -46,6 +46,8 @@ def settings(tmp_path: Path) -> Settings:
         JWT_SECRET=TEST_SECRET,
         PASSWORD_BCRYPT_ROUNDS=4,
         CLOCK_MODE="memory",
+        VOICE="mock",
+        ELEVENLABS_API_KEY="",
         ELEVENLABS_WEBHOOK_SECRET=WEBHOOK_SECRET,
         ELEVENLABS_PROVISIONER="memory",
         ELEVENLABS_STATE_FILE=str(state_file),

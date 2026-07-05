@@ -19,6 +19,9 @@ def app():
     settings = Settings(
         JWT_SECRET=TEST_JWT_SECRET,
         PASSWORD_BCRYPT_ROUNDS=4,
+        VOICE="mock",
+        ELEVENLABS_PROVISIONER="memory",
+        ELEVENLABS_API_KEY="",
         ELEVENLABS_AGENT_ID="agent_mock_integration",
     )
     application = create_app(settings)

@@ -25,7 +25,7 @@ Plan de ejecución incremental de SUPERION. Cada plan es **independientemente en
 | 06 | ElevenLabs Webhook Mock | Webhook firma OK → tool call → state change → WS | BE-07 |
 | 07 | Reports + PDF + Finalize | Reporte live → finalize → PDF mock descargable | BE-08 |
 | 08 | Observability + Hardening | OpenAPI servido, contract tests, audit, rate limit, `/ready` | BE-09 |
-| 09 | ElevenLabs Agent Provision | CLI Python provision+deploy agente; `voice/connect` con signed_url | FE voz real |
+| 09 | ElevenLabs Agent Provision | CLI Python provision+deploy agente; `voice/connect` con signed_url | FE voz real 🚧 |
 
 ### Frontend (`plans/frontend/`)
 

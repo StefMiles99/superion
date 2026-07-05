@@ -11,7 +11,7 @@ from infrastructure.external.elevenlabs.config_builder import (
     build_conversation_config,
     build_platform_settings,
 )
-from infrastructure.external.elevenlabs.tool_builder import build_webhook_tool_payload
+from infrastructure.external.elevenlabs.tool_builder import build_tool_request_model
 
 
 class ElevenLabsSdkProvisioner:
@@ -40,23 +40,28 @@ class ElevenLabsSdkProvisioner:
         client = self._client()
         result = dict(existing_tool_ids)
         remote_tools = await client.conversational_ai.tools.list()
-        by_name = {item.name: item.tool_id for item in remote_tools.tools}
+        by_name: dict[str, str] = {}
+        for item in remote_tools.tools:
+            tool_config = getattr(item, "tool_config", None)
+            tool_name = getattr(tool_config, "name", None)
+            if tool_name:
+                by_name[tool_name] = item.id
 
         for spec in tools:
-            payload = build_webhook_tool_payload(spec)
+            request = build_tool_request_model(spec)
             if spec.name in by_name:
                 tool_id = by_name[spec.name]
-                await client.conversational_ai.tools.update(tool_id=tool_id, **payload)
+                await client.conversational_ai.tools.update(tool_id=tool_id, request=request)
                 result[spec.name] = tool_id
                 continue
             if spec.name in result:
                 await client.conversational_ai.tools.update(
                     tool_id=result[spec.name],
-                    **payload,
+                    request=request,
                 )
                 continue
-            created = await client.conversational_ai.tools.create(**payload)
-            result[spec.name] = created.tool_id
+            created = await client.conversational_ai.tools.create(request=request)
+            result[spec.name] = created.id
         return result
 
     async def ensure_agent(

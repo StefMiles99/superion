@@ -5,6 +5,7 @@ from __future__ import annotations
 import argparse
 import asyncio
 import json
+import os
 import sys
 
 from application.use_cases.elevenlabs.deploy_agent import DeployAgentUseCase
@@ -16,6 +17,13 @@ from infrastructure.external.elevenlabs.manifest_loader import YamlManifestLoade
 from infrastructure.external.elevenlabs.paths import resolve_repo_relative_path
 from infrastructure.external.elevenlabs.state_store import JsonStateStore
 from infrastructure.factories import get_elevenlabs_provisioner, get_settings, set_settings
+
+
+def _sync_manifest_env(settings: Settings) -> None:
+    """Expone variables de settings a os.environ para sustitución en agent.yaml."""
+    os.environ["ELEVENLABS_VOICE_ID"] = settings.ELEVENLABS_VOICE_ID
+    os.environ["API_BASE_URL"] = settings.API_BASE_URL
+    os.environ["DEPLOY_ENV"] = settings.DEPLOY_ENV
 
 
 def _build_parser() -> argparse.ArgumentParser:
@@ -41,6 +49,7 @@ def _build_parser() -> argparse.ArgumentParser:
 
 async def _cmd_provision(args: argparse.Namespace) -> int:
     settings = get_settings()
+    _sync_manifest_env(settings)
     manifest_path = resolve_repo_relative_path(args.manifest or settings.ELEVENLABS_AGENT_MANIFEST)
     state_path = resolve_repo_relative_path(settings.ELEVENLABS_STATE_FILE)
     loader = LoadManifestUseCase(
@@ -60,6 +69,7 @@ async def _cmd_provision(args: argparse.Namespace) -> int:
 
 async def _cmd_deploy(args: argparse.Namespace) -> int:
     settings = get_settings()
+    _sync_manifest_env(settings)
     state_path = resolve_repo_relative_path(settings.ELEVENLABS_STATE_FILE)
     use_case = DeployAgentUseCase(
         provisioner=get_elevenlabs_provisioner(),
@@ -95,6 +105,7 @@ def _cmd_status(args: argparse.Namespace) -> int:
 
 def _cmd_validate_manifest(args: argparse.Namespace) -> int:
     settings = get_settings()
+    _sync_manifest_env(settings)
     manifest_path = resolve_repo_relative_path(args.manifest or settings.ELEVENLABS_AGENT_MANIFEST)
     loader = LoadManifestUseCase(
         loader=YamlManifestLoader(),
@@ -109,6 +120,7 @@ def main(argv: list[str] | None = None) -> int:
     parser = _build_parser()
     args = parser.parse_args(argv)
     set_settings(Settings())
+    _sync_manifest_env(get_settings())
     try:
         if args.command == "provision":
             return asyncio.run(_cmd_provision(args))
