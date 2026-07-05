@@ -836,3 +836,10 @@ def get_connect_session_use_case(settings: Settings | None = None):
         agent_id=_resolved_agent_id(cfg),
         connect_mode=cfg.ELEVENLABS_CONNECT_MODE,
     )
+
+
+def get_provision_status_use_case(settings: Settings | None = None):
+    from application.use_cases.elevenlabs.get_provision_status import GetProvisionStatusUseCase
+
+    cfg = settings or get_settings()
+    return GetProvisionStatusUseCase(settings=cfg)

@@ -431,7 +431,8 @@ python -m interface.cli.elevenlabs deploy
 - [ ] CLI `deploy` publica al porcentaje configurado
 - [ ] `InMemoryElevenLabsProvisioner` usable sin API key ni red
 - [ ] `ElevenLabsSdkProvisioner` crea/actualiza tools, agente y deployment vía SDK Python
-- [ ] `POST /v1/sessions/{id}/voice/connect` devuelve `signed_url` sin exponer `ELEVENLABS_API_KEY`
+- [x] `POST /v1/sessions/{id}/voice/connect` devuelve `signed_url` sin exponer `ELEVENLABS_API_KEY`
+- [x] `GET /v1/admin/elevenlabs/agent/status` (supervisor/rag_admin)
 - [ ] `/ready` reporta `elevenlabs_agent: ok|not_configured` cuando `VOICE=elevenlabs`
 - [ ] `.env.example` documentado
 - [ ] Sin uso de UI web ni `@elevenlabs/cli` npm en scripts ni docs operativas

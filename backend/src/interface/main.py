@@ -29,6 +29,7 @@ from interface.http.routers import (
     voice,
     work_orders,
 )
+from interface.http.routers.admin import elevenlabs as admin_elevenlabs
 from interface.http.routers.webhooks import elevenlabs as elevenlabs_webhook
 from interface.ws.handlers import router as ws_router
 
@@ -71,6 +72,7 @@ def create_app(settings: Settings | None = None) -> FastAPI:
         app.include_router(mock_storage.router)
     app.include_router(elevenlabs_webhook.router)
     app.include_router(elevenlabs_tools.router)
+    app.include_router(admin_elevenlabs.router)
     app.include_router(ws_router)
 
     return app
