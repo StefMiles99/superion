@@ -4,6 +4,7 @@ from __future__ import annotations
 
 from datetime import timedelta
 
+from application.decorators.audit import audit
 from application.dto.report import FinalizeReportOutput
 from application.use_cases.events.append import AppendEventUseCase
 from application.use_cases.reports.build_live import BuildLiveReportUseCase
@@ -18,6 +19,7 @@ from domain.ports.repositories import (
 )
 from domain.ports.services import IClock, IReportRenderer
 from domain.ports.storage import IObjectStorage
+from domain.value_objects.action import AuditAction
 from domain.value_objects.event_type import EventType
 from domain.value_objects.report_status import ReportStatus
 
@@ -52,6 +54,7 @@ class FinalizeReportUseCase:
         self._clock = clock
         self._signed_url_ttl = signed_url_ttl
 
+    @audit(AuditAction.FINALIZE_SESSION, target_type="session")
     async def execute(
         self,
         *,

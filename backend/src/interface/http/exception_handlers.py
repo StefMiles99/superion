@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 from fastapi import FastAPI, Request
+from fastapi.encoders import jsonable_encoder
 from fastapi.exceptions import RequestValidationError
 from fastapi.responses import JSONResponse
 from starlette.exceptions import HTTPException as StarletteHTTPException
@@ -12,6 +13,7 @@ from domain.exceptions import (
     DomainError,
     ForbiddenError,
     NotFoundError,
+    RateLimitedError,
     ServiceUnavailableError,
     UnauthorizedError,
     ValidationError,
@@ -47,15 +49,22 @@ _CONFLICT_CODES = frozenset({
     ErrorCode.SESSION_NOT_FINALIZED.value,
     ErrorCode.STEP_CRITICAL_CANNOT_SKIP.value,
     ErrorCode.STEP_REQUIRES_PHOTO.value,
+    ErrorCode.STEP_OUT_OF_ORDER.value,
+    ErrorCode.STEP_ALREADY_DONE.value,
+    ErrorCode.IDEMPOTENCY_KEY_REUSED.value,
 })
 
 
 def _status_for_domain_error(exc: DomainError) -> int:
+    if isinstance(exc, RateLimitedError) or exc.code == ErrorCode.RATE_LIMITED.value:
+        return 429
     if isinstance(exc, UnauthorizedError):
         return 401
-    if isinstance(exc, ServiceUnavailableError):
-        return 503
-    if exc.code == ErrorCode.LANGGRAPH_UNAVAILABLE.value:
+    if isinstance(exc, ServiceUnavailableError) or exc.code in (
+        ErrorCode.LANGGRAPH_UNAVAILABLE.value,
+        ErrorCode.ELEVENLABS_UNAVAILABLE.value,
+        ErrorCode.OPENROUTER_UNAVAILABLE.value,
+    ):
         return 503
     if isinstance(exc, ConflictError) or exc.code in _CONFLICT_CODES:
         return 409
@@ -72,8 +81,13 @@ def _status_for_domain_error(exc: DomainError) -> int:
         ErrorCode.VALIDATION_ERROR.value,
         ErrorCode.PHOTO_VALIDATION_FAILED.value,
         ErrorCode.MANUAL_INVALID_PDF.value,
+        ErrorCode.PROCEDURE_TEMPLATE_INVALID.value,
     ):
         return 422
+    if exc.code == ErrorCode.MANUAL_INDEXING_FAILED.value:
+        return 500
+    if exc.code == ErrorCode.INVALID_SIGNATURE.value:
+        return 401
     if isinstance(exc, ForbiddenError) or exc.code == ErrorCode.FORBIDDEN.value:
         return 403
     return 500
@@ -102,6 +116,14 @@ def register_exception_handlers(app: FastAPI) -> None:
                     message="Recurso no encontrado.",
                 ),
             )
+        if exc.status_code == 400:
+            return JSONResponse(
+                status_code=400,
+                content=_error_envelope(
+                    code=ErrorCode.VALIDATION_ERROR.value,
+                    message=str(exc.detail),
+                ),
+            )
         return JSONResponse(
             status_code=exc.status_code,
             content=_error_envelope(
@@ -120,7 +142,7 @@ def register_exception_handlers(app: FastAPI) -> None:
             content=_error_envelope(
                 code=ErrorCode.VALIDATION_ERROR.value,
                 message="Datos de entrada inválidos.",
-                details={"errors": exc.errors()},
+                details={"errors": jsonable_encoder(exc.errors())},
             ),
         )
 

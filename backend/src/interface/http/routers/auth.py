@@ -48,7 +48,11 @@ async def refresh(
     return result.model_dump()
 
 
-@router.post("/logout", status_code=status.HTTP_204_NO_CONTENT)
+@router.post(
+    "/logout",
+    status_code=status.HTTP_204_NO_CONTENT,
+    responses={204: {"description": "Sesión cerrada"}},
+)
 async def logout(
     authorization: Annotated[str | None, Header(alias="Authorization")] = None,
     use_case: LogoutUseCase = Depends(get_logout_use_case),

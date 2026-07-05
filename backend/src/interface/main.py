@@ -1,4 +1,4 @@
-"""Factory de aplicación FastAPI — BE-00."""
+"""Factory de aplicación FastAPI — BE-00/BE-08."""
 
 from __future__ import annotations
 
@@ -6,18 +6,24 @@ from contextlib import asynccontextmanager
 
 from fastapi import FastAPI
 
+from application.dto.error_envelope import COMMON_ERROR_RESPONSES
 from infrastructure.config import Settings
 from infrastructure.factories import ensure_build_live_started, set_settings
 from infrastructure.observability.logging import configure_logging
 from interface.http.exception_handlers import register_exception_handlers
 from interface.http.middleware.correlation import CorrelationMiddleware
 from interface.http.middleware.logging import LoggingMiddleware
+from interface.http.middleware.rate_limit import RateLimitMiddleware
+from interface.http.middleware.security_headers import SecurityHeadersMiddleware
 from interface.http.routers import (
+    audit,
     auth,
     elevenlabs_tools,
     health,
     manuals,
+    metrics,
     mock_storage,
+    openapi,
     photos,
     reports,
     sessions,
@@ -42,13 +48,20 @@ def create_app(settings: Settings | None = None) -> FastAPI:
         title="SUPERION API",
         version=cfg.APP_VERSION,
         lifespan=lifespan,
+        responses=COMMON_ERROR_RESPONSES,
     )
 
+    if cfg.SECURITY_HEADERS:
+        app.add_middleware(SecurityHeadersMiddleware)
+    app.add_middleware(RateLimitMiddleware)
     app.add_middleware(LoggingMiddleware)
     app.add_middleware(CorrelationMiddleware)
 
     register_exception_handlers(app)
     app.include_router(health.router)
+    app.include_router(openapi.router)
+    app.include_router(metrics.router)
+    app.include_router(audit.router)
     app.include_router(auth.router)
     app.include_router(work_orders.router)
     app.include_router(sessions.router)

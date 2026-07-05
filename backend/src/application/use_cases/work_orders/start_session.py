@@ -4,6 +4,7 @@ from __future__ import annotations
 
 from uuid import uuid4
 
+from application.decorators.audit import audit
 from application.dto.mappers import procedure_template_to_output
 from application.dto.session import StartSessionOutput
 from domain.entities.maintenance_session import MaintenanceSession
@@ -15,6 +16,7 @@ from domain.ports.repositories import (
     IWorkOrderRepository,
 )
 from domain.ports.services import IClock
+from domain.value_objects.action import AuditAction
 from domain.value_objects.status import SessionStatus, WorkOrderStatus
 
 
@@ -34,6 +36,7 @@ class StartSessionUseCase:
         self._templates = templates
         self._clock = clock
 
+    @audit(AuditAction.START_SESSION, target_type="session")
     async def execute(self, *, work_order_id: str, current_user: User) -> StartSessionOutput:
         order = await self._work_orders.get_by_id_for_technician(
             work_order_id,

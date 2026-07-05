@@ -2,10 +2,12 @@
 
 from __future__ import annotations
 
+from application.decorators.audit import audit
 from domain.exceptions import UnauthorizedError
 from domain.ports.repositories import ITokenBlacklist
 from domain.ports.services import ITokenService
 from domain.services.token_service import InvalidTokenError, TokenExpiredError
+from domain.value_objects.action import AuditAction
 
 
 class LogoutUseCase:
@@ -20,6 +22,7 @@ class LogoutUseCase:
         self._tokens = tokens
         self._blacklist = blacklist
 
+    @audit(AuditAction.LOGOUT, target_type="user")
     async def execute(self, *, access_token: str) -> None:
         try:
             payload = self._tokens.decode_access_token(access_token)

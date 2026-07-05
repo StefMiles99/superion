@@ -28,7 +28,9 @@ async def test_health_endpoint_returns_200_with_shape(client: AsyncClient) -> No
 async def test_ready_endpoint_returns_200(client: AsyncClient) -> None:
     response = await client.get("/ready")
     assert response.status_code == 200
-    assert response.json() == {"status": "ready"}
+    body = response.json()
+    assert body["status"] == "ready"
+    assert "checks" in body
 
 
 async def test_unknown_route_returns_404_envelope(client: AsyncClient) -> None:

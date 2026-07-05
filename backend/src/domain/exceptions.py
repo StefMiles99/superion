@@ -41,3 +41,7 @@ class ConflictError(DomainError):
 
 class ServiceUnavailableError(DomainError):
     """Servicio externo no disponible — HTTP 503."""
+
+
+class RateLimitedError(DomainError):
+    """Rate limit excedido — HTTP 429."""
