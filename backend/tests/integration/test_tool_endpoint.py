@@ -75,6 +75,63 @@ async def _upload_manual(client: AsyncClient, headers: dict[str, str]) -> None:
     raise AssertionError("Manual no indexado")
 
 
+async def test_get_current_step_tool_returns_active_step(client: AsyncClient) -> None:
+    tech = await _tech_headers(client)
+    session_id = await _start_session(client, tech)
+
+    response = await client.post(
+        "/v1/elevenlabs/tools/get_current_step",
+        headers=tech,
+        json={
+            "call_id": str(uuid4()),
+            "session_id": session_id,
+            "arguments": {},
+        },
+    )
+    assert response.status_code == 200
+    result = response.json()["result"]
+    assert result["index"] == 0
+    assert result["current_step_index"] == 0
+    assert result["total_steps"] >= 1
+    assert result["title"]
+    assert result["all_steps_completed"] is False
+
+
+async def test_get_current_step_elevenlabs_format_with_tool_secret(
+    client: AsyncClient,
+) -> None:
+    """ElevenLabs: session_id en query + auth header."""
+    tech = await _tech_headers(client)
+    session_id = await _start_session(client, tech)
+
+    response = await client.post(
+        "/v1/elevenlabs/tools/get_current_step",
+        headers={"X-Superion-Tool-Auth": WEBHOOK_SECRET},
+        params={"session_id": session_id, "tool_auth": WEBHOOK_SECRET},
+        json={},
+    )
+    assert response.status_code == 200
+    body = response.json()
+    assert "result" in body
+    result = body["result"]
+    if isinstance(result, dict):
+        assert result.get("title") or result.get("summary")
+    else:
+        assert "Paso" in str(result)
+
+
+async def test_get_current_step_elevenlabs_query_auth_only(client: AsyncClient) -> None:
+    tech = await _tech_headers(client)
+    session_id = await _start_session(client, tech)
+
+    response = await client.post(
+        f"/v1/elevenlabs/tools/get_current_step?session_id={session_id}&tool_auth={WEBHOOK_SECRET}",
+        json={},
+    )
+    assert response.status_code == 200
+    assert "result" in response.json()
+
+
 async def test_query_manual_tool_with_auth(client: AsyncClient) -> None:
     tech = await _tech_headers(client)
     admin = await _admin_headers(client)

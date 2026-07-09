@@ -4,8 +4,8 @@ agent:
   voice_id: ${ELEVENLABS_VOICE_ID}
   tts_model: eleven_multilingual_v2
   language: es
-  first_message: "Hola, soy tu copiloto de mantenimiento. ¿En qué paso estás?"
-  llm: gemini-2.0-flash
+  first_message: "Hola, soy SUPERION, tu copiloto para la OT {{work_order_code}} en {{asset_name}} ({{asset_tag}}). Voy a revisar en qué paso vamos."
+  llm: claude-sonnet-4-5
   system_prompt: !include prompts/agent-system.md
   tools: !include tools/agent-tools.json
   variables:

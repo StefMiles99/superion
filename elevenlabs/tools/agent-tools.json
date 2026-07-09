@@ -16,7 +16,16 @@
     "webhook": {
       "method": "POST",
       "url_template": "${API_BASE_URL}/v1/elevenlabs/tools/query_manual",
-      "headers": {},
+      "headers": {
+        "X-Superion-Tool-Auth": "${ELEVENLABS_WEBHOOK_SECRET}"
+      },
+      "query_parameters": {
+        "properties": {
+          "session_id": { "type": "string", "dynamic_variable": "session_id" },
+          "tool_auth": { "type": "string", "constant_value": "${ELEVENLABS_WEBHOOK_SECRET}" }
+        },
+        "required": ["session_id", "tool_auth"]
+      },
       "response_timeout_secs": 25
     }
   },
@@ -33,18 +42,39 @@
     "webhook": {
       "method": "POST",
       "url_template": "${API_BASE_URL}/v1/elevenlabs/tools/mark_step_complete",
-      "headers": {},
+      "headers": {
+        "X-Superion-Tool-Auth": "${ELEVENLABS_WEBHOOK_SECRET}"
+      },
+      "query_parameters": {
+        "properties": {
+          "session_id": { "type": "string", "dynamic_variable": "session_id" },
+          "tool_auth": { "type": "string", "constant_value": "${ELEVENLABS_WEBHOOK_SECRET}" }
+        },
+        "required": ["session_id", "tool_auth"]
+      },
       "response_timeout_secs": 25
     }
   },
   {
     "name": "get_current_step",
     "description": "Devuelve el paso actual de la sesión.",
-    "parameters": { "type": "object", "properties": {} },
+    "parameters": {
+      "type": "object",
+      "properties": {}
+    },
     "webhook": {
       "method": "POST",
       "url_template": "${API_BASE_URL}/v1/elevenlabs/tools/get_current_step",
-      "headers": {},
+      "headers": {
+        "X-Superion-Tool-Auth": "${ELEVENLABS_WEBHOOK_SECRET}"
+      },
+      "query_parameters": {
+        "properties": {
+          "session_id": { "type": "string", "dynamic_variable": "session_id" },
+          "tool_auth": { "type": "string", "constant_value": "${ELEVENLABS_WEBHOOK_SECRET}" }
+        },
+        "required": ["session_id", "tool_auth"]
+      },
       "response_timeout_secs": 20
     }
   }

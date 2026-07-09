@@ -24,6 +24,7 @@ def _sync_manifest_env(settings: Settings) -> None:
     os.environ["ELEVENLABS_VOICE_ID"] = settings.ELEVENLABS_VOICE_ID
     os.environ["API_BASE_URL"] = settings.API_BASE_URL
     os.environ["DEPLOY_ENV"] = settings.DEPLOY_ENV
+    os.environ["ELEVENLABS_WEBHOOK_SECRET"] = settings.ELEVENLABS_WEBHOOK_SECRET
 
 
 def _build_parser() -> argparse.ArgumentParser:

@@ -83,6 +83,7 @@ def _parse_tools(raw_tools: list[dict[str, Any]], *, api_base_url: str) -> list[
                     url_template=url_template,
                     headers=webhook_raw.get("headers", {}),
                     response_timeout_secs=int(webhook_raw.get("response_timeout_secs", 20)),
+                    query_parameters=webhook_raw.get("query_parameters"),
                 ),
             )
         )

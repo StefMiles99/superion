@@ -3,9 +3,9 @@
 from __future__ import annotations
 
 from application.dto.event import ListEventsOutput, SessionEventOutput
+from application.services.session_access import resolve_session_for_user
 from domain.entities.user import User
-from domain.exceptions import NotFoundError
-from domain.ports.repositories import ISessionEventRepository, ISessionRepository
+from domain.ports.repositories import ISessionEventRepository, ISessionRepository, IUserRepository
 
 
 class ListEventsSinceUseCase:
@@ -16,9 +16,11 @@ class ListEventsSinceUseCase:
         *,
         sessions: ISessionRepository,
         events: ISessionEventRepository,
+        users: IUserRepository,
     ) -> None:
         self._sessions = sessions
         self._events = events
+        self._users = users
 
     async def execute(
         self,
@@ -28,16 +30,12 @@ class ListEventsSinceUseCase:
         limit: int,
         current_user: User,
     ) -> ListEventsOutput:
-        session = await self._sessions.get_by_id_for_technician(
-            session_id,
-            technician_id=current_user.id,
+        await resolve_session_for_user(
+            sessions=self._sessions,
+            users=self._users,
+            session_id=session_id,
+            current_user=current_user,
         )
-        if session is None:
-            raise NotFoundError(
-                code="SESSION_NOT_FOUND",
-                message="Sesión no encontrada.",
-                details={"id": session_id},
-            )
 
         items = await self._events.list_since(
             session_id,

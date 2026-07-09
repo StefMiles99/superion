@@ -2,6 +2,7 @@ import {
   ApiError,
   type AuthSession,
   type FinalizeResult,
+  type MaintenanceReport,
   type Manual,
   type ManualUploadCommand,
   type ManualUploadResult,
@@ -10,6 +11,8 @@ import {
   type PhotoUploadResult,
   type ReindexResult,
   type Session,
+  type SessionEventItem,
+  type SessionListItem,
   type StartSessionResult,
   type UploadPhotoCommand,
   type UserProfile,
@@ -317,9 +320,103 @@ export class MockBackend {
     return { photo_id: photoId, status: "pending", uploaded_at: new Date().toISOString() };
   }
 
-  reportPdf(): Blob {
+  reportPdf(sessionId: string): Blob {
+    const state = this.sessions.get(sessionId);
+    if (!state || state.session.status !== "finalized") {
+      throw new ApiError(409, "SESSION_NOT_FINALIZED", "La sesión no está finalizada.");
+    }
     const pdf = "%PDF-1.4\n% SUPERION mock report\n";
     return new Blob([pdf], { type: "application/pdf" });
+  }
+
+  getReport(sessionId: string): MaintenanceReport {
+    const state = this.sessions.get(sessionId);
+    if (!state) throw new ApiError(404, "SESSION_NOT_FOUND", "Sesión no encontrada.");
+    const wo = this.getWorkOrder(state.session.work_order_id);
+    const doneSteps = new Set<number>();
+    for (const ev of state.log) {
+      if (ev.type === "step.completed" || ev.type === "photo.validated") {
+        doneSteps.add(ev.step_index ?? 0);
+      }
+    }
+    const procedure = mockTemplate.steps.map((step) => ({
+      index: step.index,
+      title: step.title,
+      status: doneSteps.has(step.index) ? ("done" as const) : ("pending" as const),
+      skip_reason: null,
+      observations: state.log
+        .filter((e) => e.type === "assistant.answered" && e.step_index === step.index)
+        .map((e) => String((e.payload as { answer_text?: string })?.answer_text ?? ""))
+        .filter(Boolean),
+      findings: [],
+    }));
+
+    return {
+      id: `rep-${sessionId}`,
+      session_id: sessionId,
+      status: state.session.status === "finalized" ? "finalized" : "draft",
+      version: 1,
+      updated_at: new Date().toISOString(),
+      content: {
+        header: {
+          ot_code: wo.code,
+          technician: this.lastUser.full_name,
+          asset: wo.asset.name,
+          plant: "plant-1",
+          started_at: state.session.started_at,
+          ended_at: state.session.ended_at,
+          duration_min: 30,
+        },
+        summary: `Mantenimiento ${wo.code}: ${doneSteps.size}/${mockTemplate.steps.length} pasos completados.`,
+        procedure,
+        findings: [],
+        measurements: [],
+        photos_gallery: [],
+      },
+    };
+  }
+
+  listSessionEvents(
+    sessionId: string,
+    params?: { sinceSeq?: number; limit?: number },
+  ): { items: SessionEventItem[] } {
+    const state = this.sessions.get(sessionId);
+    if (!state) throw new ApiError(404, "SESSION_NOT_FOUND", "Sesión no encontrada.");
+    const since = params?.sinceSeq ?? 0;
+    const limit = params?.limit ?? 500;
+    const items: SessionEventItem[] = state.log
+      .filter((ev) => (ev.seq ?? 0) > since)
+      .slice(0, limit)
+      .map((ev) => ({
+        seq: ev.seq ?? 0,
+        type: ev.type,
+        session_id: sessionId,
+        step_index: ev.step_index ?? 0,
+        payload: (ev.payload ?? {}) as Record<string, unknown>,
+        created_at: ev.created_at ?? new Date().toISOString(),
+      }));
+    return { items };
+  }
+
+  listSessions(): { items: SessionListItem[] } {
+    if (this.lastUser.role === "technician") {
+      throw new ApiError(403, "FORBIDDEN", "Solo supervisores pueden listar sesiones.");
+    }
+    const items: SessionListItem[] = [...this.sessions.entries()].map(([id, state]) => {
+      const wo = this.getWorkOrder(state.session.work_order_id);
+      return {
+        id,
+        work_order_id: state.session.work_order_id,
+        work_order_code: wo.code,
+        asset_name: wo.asset.name,
+        technician_name: mockUser.full_name,
+        status: state.session.status,
+        started_at: state.session.started_at,
+        ended_at: state.session.ended_at,
+      };
+    });
+    items.sort((a, b) => b.started_at.localeCompare(a.started_at));
+    return { items };
   }
 
   // ---- Manuals (RAG) ----

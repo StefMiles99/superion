@@ -4,6 +4,7 @@ import {
   type FinalizeResult,
   type IApiClient,
   type IStorage,
+  type MaintenanceReport,
   type Manual,
   type ManualUploadCommand,
   type ManualUploadResult,
@@ -11,6 +12,8 @@ import {
   type PhotoUploadResult,
   type ReindexResult,
   type Session,
+  type SessionEventItem,
+  type SessionListItem,
   type StartSessionResult,
   type UploadPhotoCommand,
   type UserProfile,
@@ -168,6 +171,27 @@ export class HttpApiClient implements IApiClient {
       method: "POST",
       body: {},
     });
+  }
+
+  getReport(sessionId: string): Promise<MaintenanceReport> {
+    return this.request<MaintenanceReport>(`/v1/sessions/${sessionId}/report`);
+  }
+
+  listSessionEvents(
+    sessionId: string,
+    params?: { sinceSeq?: number; limit?: number },
+  ): Promise<{ items: SessionEventItem[] }> {
+    const qs = new URLSearchParams();
+    if (params?.sinceSeq != null) qs.set("since_seq", String(params.sinceSeq));
+    if (params?.limit != null) qs.set("limit", String(params.limit));
+    const suffix = qs.toString() ? `?${qs.toString()}` : "";
+    return this.request<{ items: SessionEventItem[] }>(
+      `/v1/sessions/${sessionId}/events${suffix}`,
+    );
+  }
+
+  listSessions(): Promise<{ items: SessionListItem[] }> {
+    return this.request<{ items: SessionListItem[] }>("/v1/sessions");
   }
 
   voiceConnect(id: string): Promise<VoiceConnect> {

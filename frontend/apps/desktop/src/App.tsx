@@ -6,6 +6,8 @@ import { useBootstrapAuth } from "@/hooks/useAuth";
 
 const LoginPage = lazy(() => import("@/pages/LoginPage"));
 const ManualsPage = lazy(() => import("@/pages/ManualsPage"));
+const SessionsPage = lazy(() => import("@/pages/SessionsPage"));
+const SessionDetailPage = lazy(() => import("@/pages/SessionDetailPage"));
 
 function Fallback() {
   return (
@@ -27,6 +29,22 @@ export function App() {
           element={
             <RequireAdmin>
               <ManualsPage />
+            </RequireAdmin>
+          }
+        />
+        <Route
+          path="/sessions"
+          element={
+            <RequireAdmin>
+              <SessionsPage />
+            </RequireAdmin>
+          }
+        />
+        <Route
+          path="/sessions/:id"
+          element={
+            <RequireAdmin>
+              <SessionDetailPage />
             </RequireAdmin>
           }
         />

@@ -11,6 +11,7 @@ class ExecuteToolUseCase:
 
     SUPPORTED_TOOLS = frozenset({
         "query_manual",
+        "get_current_step",
         "mark_step_complete",
         "request_evidence_photo",
         "add_finding",
@@ -23,6 +24,7 @@ class ExecuteToolUseCase:
         self,
         *,
         query_manual,
+        get_current_step,
         mark_step_complete,
         request_photo,
         add_finding,
@@ -31,6 +33,7 @@ class ExecuteToolUseCase:
         pause_session,
     ) -> None:
         self._query_manual = query_manual
+        self._get_current_step = get_current_step
         self._mark_step_complete = mark_step_complete
         self._request_photo = request_photo
         self._add_finding = add_finding
@@ -62,6 +65,13 @@ class ExecuteToolUseCase:
                 question=question,
                 current_user=current_user,
                 asset_id=str(asset_id) if asset_id is not None else None,
+                call_id=call_id,
+            )
+
+        if tool_name == "get_current_step":
+            return await self._get_current_step.execute(
+                session_id=session_id,
+                current_user=current_user,
                 call_id=call_id,
             )
 

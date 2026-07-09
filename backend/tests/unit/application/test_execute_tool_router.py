@@ -8,6 +8,7 @@ from domain.exceptions import ValidationError
 
 def test_supported_tools_set() -> None:
     assert "query_manual" in ExecuteToolUseCase.SUPPORTED_TOOLS
+    assert "get_current_step" in ExecuteToolUseCase.SUPPORTED_TOOLS
     assert "mark_step_complete" in ExecuteToolUseCase.SUPPORTED_TOOLS
     assert "request_evidence_photo" in ExecuteToolUseCase.SUPPORTED_TOOLS
     assert "add_finding" in ExecuteToolUseCase.SUPPORTED_TOOLS
@@ -33,6 +34,7 @@ class _StubPause:
 def router() -> ExecuteToolUseCase:
     return ExecuteToolUseCase(
         query_manual=_StubTool(),
+        get_current_step=_StubTool(),
         mark_step_complete=_StubTool(),
         request_photo=_StubTool(),
         add_finding=_StubTool(),

@@ -17,6 +17,7 @@ import type {
   ManualUploadResult,
   ReindexResult,
 } from "../manuals";
+import type { MaintenanceReport, SessionEventItem, SessionListItem } from "../report";
 
 /** Puerto de acceso REST. Impls: HttpApiClient (real) e InMemoryApiClient (mock). */
 export interface IApiClient {
@@ -39,7 +40,15 @@ export interface IApiClient {
 
   // Photos / reports
   uploadPhoto(sessionId: string, cmd: UploadPhotoCommand): Promise<PhotoUploadResult>;
+  getReport(sessionId: string): Promise<MaintenanceReport>;
+  listSessionEvents(
+    sessionId: string,
+    params?: { sinceSeq?: number; limit?: number },
+  ): Promise<{ items: SessionEventItem[] }>;
   reportPdf(sessionId: string): Promise<Blob>;
+
+  // Sessions (supervisor/desktop)
+  listSessions(): Promise<{ items: SessionListItem[] }>;
 
   // Manuals (RAG) — dashboard admin/desktop
   listManuals(): Promise<{ items: Manual[] }>;

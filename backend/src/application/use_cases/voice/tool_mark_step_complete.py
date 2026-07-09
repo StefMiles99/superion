@@ -65,4 +65,14 @@ class ToolMarkStepCompleteUseCase:
             completed_by="voice",
         )
 
-        return {"ok": True}
+        next_step = await self._transition.get_current_step(
+            session_id=session_id,
+            current_user=current_user,
+        )
+        summary = next_step.get("summary")
+        if next_step.get("all_steps_completed"):
+            summary = f"Paso {resolved_step} completado. Procedimiento terminado; puedes finalizar la sesión."
+        elif summary:
+            summary = f"Paso {resolved_step} completado. Siguiente: {summary}"
+
+        return {"ok": True, "summary": summary or f"Paso {resolved_step} completado."}

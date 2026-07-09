@@ -92,10 +92,10 @@ class Settings(BaseSettings):
     CORS_ORIGINS: str = ""
     PDF_EXTRACTOR: Literal["mock", "pypdf"] = "mock"
     REDIS_URL: str = ""
-    OPENROUTER_LLM_MODEL: str = "google/gemini-2.0-flash-001"
+    OPENROUTER_LLM_MODEL: str = "anthropic/claude-sonnet-4"
     OPENROUTER_EMBEDDING_MODEL: str = "openai/text-embedding-3-small"
-    OPENROUTER_VLM_MODEL: str = "google/gemini-2.0-flash-001"
-    OPENROUTER_RERANKER_MODEL: str = "google/gemini-2.0-flash-001"
+    OPENROUTER_VLM_MODEL: str = "google/gemini-2.5-flash"
+    OPENROUTER_RERANKER_MODEL: str = "google/gemini-2.5-flash"
 
     def cors_origin_list(self) -> list[str]:
         if not self.CORS_ORIGINS.strip():

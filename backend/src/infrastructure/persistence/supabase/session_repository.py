@@ -83,3 +83,24 @@ class SupabaseSessionRepository(SupabaseRepository):
                 work_order_id,
             )
             return session_from_row(row) if row else None
+
+    async def list_for_plant(
+        self,
+        *,
+        plant_id: str,
+        limit: int = 50,
+    ) -> list[MaintenanceSession]:
+        pool = await self._pool()
+        async with pool.acquire() as conn:
+            rows = await conn.fetch(
+                """
+                SELECT ms.* FROM maintenance_session ms
+                INNER JOIN "user" u ON u.id = ms.technician_id
+                WHERE u.plant_id = $1
+                ORDER BY ms.started_at DESC
+                LIMIT $2
+                """,
+                plant_id,
+                limit,
+            )
+            return [session_from_row(row) for row in rows]

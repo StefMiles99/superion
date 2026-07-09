@@ -92,6 +92,13 @@ class ISessionRepository(Protocol):
         work_order_id: str,
     ) -> MaintenanceSession | None: ...
 
+    async def list_for_plant(
+        self,
+        *,
+        plant_id: str,
+        limit: int = 50,
+    ) -> list[MaintenanceSession]: ...
+
 
 class ISessionEventRepository(Protocol):
     """Persistencia append-only de eventos de sesión."""

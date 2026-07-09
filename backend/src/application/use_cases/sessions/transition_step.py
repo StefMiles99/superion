@@ -8,6 +8,7 @@ from application.use_cases.events.append import AppendEventUseCase
 from domain.entities.maintenance_session import MaintenanceSession
 from domain.entities.procedure_template import ProcedureTemplate
 from domain.entities.user import User
+from domain.value_objects.step import Step
 from domain.exceptions import ConflictError, NotFoundError
 from domain.ports.repositories import (
     IProcedureTemplateRepository,
@@ -76,6 +77,69 @@ class TransitionStepUseCase:
             )
 
         return session, template
+
+    @staticmethod
+    def _step_to_result(step: Step, *, extra: dict[str, object]) -> dict[str, object]:
+        return {
+            "index": step.index,
+            "title": step.title,
+            "description": step.description,
+            "estimated_minutes": step.estimated_minutes,
+            "critical": step.critical,
+            "requires_photo": step.requires_photo,
+            "photo_criteria": step.photo_criteria,
+            **extra,
+        }
+
+    async def get_current_step(
+        self,
+        *,
+        session_id: str,
+        current_user: User,
+    ) -> dict[str, object]:
+        """Devuelve el paso activo de la sesión según current_step_index."""
+        session, template = await self._load_session_context(session_id, current_user)
+        total_steps = len(template.steps)
+        step_index = session.current_step_index
+
+        if total_steps == 0:
+            return {
+                "index": 0,
+                "title": "",
+                "description": "",
+                "estimated_minutes": 0,
+                "critical": False,
+                "requires_photo": False,
+                "photo_criteria": None,
+                "current_step_index": step_index,
+                "total_steps": 0,
+                "all_steps_completed": True,
+            }
+
+        if step_index >= total_steps:
+            last = template.steps[-1]
+            return self._step_to_result(
+                last,
+                extra={
+                    "current_step_index": step_index,
+                    "total_steps": total_steps,
+                    "all_steps_completed": True,
+                },
+            )
+
+        current = template.steps[step_index]
+        return self._step_to_result(
+            current,
+            extra={
+                "current_step_index": step_index,
+                "total_steps": total_steps,
+                "all_steps_completed": False,
+                "summary": (
+                    f"Paso {step_index + 1} de {total_steps}: {current.title}. "
+                    f"{current.description}"
+                ),
+            },
+        )
 
     async def mark_step_complete(
         self,
