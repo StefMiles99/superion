@@ -4,9 +4,10 @@ from __future__ import annotations
 
 from dataclasses import dataclass
 
+from application.services.session_access import resolve_session_for_user
 from domain.entities.user import User
 from domain.exceptions import ConflictError, NotFoundError
-from domain.ports.repositories import IReportRepository, ISessionRepository, IWorkOrderRepository
+from domain.ports.repositories import IReportRepository, ISessionRepository, IWorkOrderRepository, IUserRepository
 from domain.ports.storage import IObjectStorage
 from domain.value_objects.report_status import ReportStatus
 
@@ -30,11 +31,13 @@ class GetReportPdfUseCase:
         reports: IReportRepository,
         work_orders: IWorkOrderRepository,
         storage: IObjectStorage,
+        users: IUserRepository,
     ) -> None:
         self._sessions = sessions
         self._reports = reports
         self._work_orders = work_orders
         self._storage = storage
+        self._users = users
 
     async def execute(
         self,
@@ -42,16 +45,12 @@ class GetReportPdfUseCase:
         session_id: str,
         current_user: User,
     ) -> ReportPdfResult:
-        session = await self._sessions.get_by_id_for_technician(
-            session_id,
-            technician_id=current_user.id,
+        session = await resolve_session_for_user(
+            sessions=self._sessions,
+            users=self._users,
+            session_id=session_id,
+            current_user=current_user,
         )
-        if session is None:
-            raise NotFoundError(
-                code="SESSION_NOT_FOUND",
-                message="Sesión no encontrada.",
-                details={"id": session_id},
-            )
 
         report = await self._reports.get_by_session_id(session_id)
         if report is None:
@@ -78,7 +77,7 @@ class GetReportPdfUseCase:
 
         order = await self._work_orders.get_by_id_for_technician(
             session.work_order_id,
-            technician_id=current_user.id,
+            technician_id=session.technician_id,
         )
         ot_code = order.code if order is not None else "OT-UNKNOWN"
         filename = f"{ot_code}-reporte.pdf"

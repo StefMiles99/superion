@@ -14,6 +14,7 @@ from domain.entities.user import User
 from infrastructure.factories import (
     get_finalize_report_use_case,
     get_list_events_use_case,
+    get_list_plant_sessions_use_case,
     get_pause_session_use_case,
     get_post_session_event_use_case,
     get_resume_session_use_case,
@@ -26,6 +27,16 @@ from infrastructure.factories import (
 from interface.http.deps.auth import get_current_user
 
 router = APIRouter(prefix="/v1/sessions", tags=["sessions"])
+
+
+@router.get("")
+async def list_plant_sessions(
+    user: User = Depends(get_current_user),
+    use_case=Depends(get_list_plant_sessions_use_case),
+    limit: int = Query(default=50, ge=1, le=100),
+) -> dict[str, object]:
+    result = await use_case.execute(current_user=user, limit=limit)
+    return result.model_dump()
 
 
 @router.get("/{session_id}")

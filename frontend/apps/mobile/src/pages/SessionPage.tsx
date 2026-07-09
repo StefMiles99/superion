@@ -105,6 +105,17 @@ export default function SessionPage() {
             {controls.finalize.isPending ? t("session.finalizing") : t("session.finalize")}
           </Button>
         </div>
+        {controls.finalizeErrorKey && (
+          <p className="text-center text-sm text-rose-400">
+            {controls.finalizeErrorKey === "incompleteSteps"
+              ? t("session.finalizeIncomplete")
+              : controls.finalizeErrorKey === "alreadyFinalized"
+                ? t("session.finalizeAlreadyDone")
+                : controls.finalizeErrorKey === "generic"
+                  ? t("session.finalizeError")
+                  : controls.finalizeErrorKey}
+          </p>
+        )}
       </div>
 
       <AnalysisEdge analysis={analysis} />

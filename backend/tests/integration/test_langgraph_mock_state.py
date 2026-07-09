@@ -8,6 +8,7 @@ from application.use_cases.sessions.transition_step import TransitionStepUseCase
 from application.use_cases.voice.execute_tool import ExecuteToolUseCase
 from application.use_cases.voice.tool_add_finding import ToolAddFindingUseCase
 from application.use_cases.voice.tool_add_measurement import ToolAddMeasurementUseCase
+from application.use_cases.voice.tool_get_current_step import ToolGetCurrentStepUseCase
 from application.use_cases.voice.tool_mark_step_complete import ToolMarkStepCompleteUseCase
 from application.use_cases.voice.tool_query_manual import ToolQueryManualUseCase
 from application.use_cases.voice.tool_request_photo import ToolRequestPhotoUseCase
@@ -71,6 +72,10 @@ async def setup():
             work_orders=work_orders,
             assets=InMemoryAssetRepository.shared(),
             rag_query=get_rag_query_use_case(),
+            append_events=append,
+        ),
+        get_current_step=ToolGetCurrentStepUseCase(
+            transition_step=transition,
             append_events=append,
         ),
         mark_step_complete=ToolMarkStepCompleteUseCase(

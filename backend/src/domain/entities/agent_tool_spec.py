@@ -13,6 +13,7 @@ class WebhookConfig:
     url_template: str
     headers: dict[str, str]
     response_timeout_secs: int
+    query_parameters: dict[str, object] | None = None
 
     def __post_init__(self) -> None:
         if self.method not in {"GET", "POST", "PUT", "PATCH", "DELETE"}:

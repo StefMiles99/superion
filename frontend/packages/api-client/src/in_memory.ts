@@ -3,12 +3,15 @@ import type {
   FinalizeResult,
   IApiClient,
   Manual,
+  MaintenanceReport,
   ManualUploadCommand,
   ManualUploadResult,
   Paginated,
   PhotoUploadResult,
   ReindexResult,
   Session,
+  SessionEventItem,
+  SessionListItem,
   StartSessionResult,
   UploadPhotoCommand,
   UserProfile,
@@ -83,9 +86,27 @@ export class InMemoryApiClient implements IApiClient {
     return this.backend.uploadPhoto(sessionId, cmd);
   }
 
-  async reportPdf(): Promise<Blob> {
+  async reportPdf(sessionId: string): Promise<Blob> {
     await tick();
-    return this.backend.reportPdf();
+    return this.backend.reportPdf(sessionId);
+  }
+
+  async getReport(sessionId: string): Promise<MaintenanceReport> {
+    await tick();
+    return this.backend.getReport(sessionId);
+  }
+
+  async listSessionEvents(
+    sessionId: string,
+    params?: { sinceSeq?: number; limit?: number },
+  ): Promise<{ items: SessionEventItem[] }> {
+    await tick();
+    return this.backend.listSessionEvents(sessionId, params);
+  }
+
+  async listSessions(): Promise<{ items: SessionListItem[] }> {
+    await tick();
+    return this.backend.listSessions();
   }
 
   async listManuals(): Promise<{ items: Manual[] }> {

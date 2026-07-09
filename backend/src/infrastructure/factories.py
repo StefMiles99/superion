@@ -339,6 +339,7 @@ def get_list_events_use_case():
     return ListEventsSinceUseCase(
         sessions=get_session_repository(cfg),
         events=get_session_event_repository(cfg),
+        users=get_user_repository(cfg),
     )
 
 
@@ -415,6 +416,7 @@ def get_get_report_use_case():
         sessions=get_session_repository(cfg),
         reports=get_report_repository(cfg),
         build_live=get_build_live_report_use_case(),
+        users=get_user_repository(cfg),
     )
 
 
@@ -427,6 +429,19 @@ def get_get_report_pdf_use_case():
         reports=get_report_repository(cfg),
         work_orders=get_work_order_repository(cfg),
         storage=get_object_storage(cfg),
+        users=get_user_repository(cfg),
+    )
+
+
+def get_list_plant_sessions_use_case():
+    from application.use_cases.sessions.list_plant import ListPlantSessionsUseCase
+
+    cfg = get_settings()
+    return ListPlantSessionsUseCase(
+        sessions=get_session_repository(cfg),
+        work_orders=get_work_order_repository(cfg),
+        assets=get_asset_repository(cfg),
+        users=get_user_repository(cfg),
     )
 
 
@@ -437,6 +452,7 @@ def get_session_use_case():
     return GetSessionUseCase(
         sessions=get_session_repository(cfg),
         events=get_session_event_repository(cfg),
+        users=get_user_repository(cfg),
     )
 
 
@@ -763,6 +779,15 @@ def get_tool_query_manual_use_case():
     )
 
 
+def get_tool_get_current_step_use_case():
+    from application.use_cases.voice.tool_get_current_step import ToolGetCurrentStepUseCase
+
+    return ToolGetCurrentStepUseCase(
+        transition_step=get_transition_step_use_case(),
+        append_events=get_append_event_use_case(),
+    )
+
+
 def get_tool_mark_step_complete_use_case():
     from application.use_cases.voice.tool_mark_step_complete import ToolMarkStepCompleteUseCase
 
@@ -806,6 +831,7 @@ def get_execute_tool_use_case():
 
     return ExecuteToolUseCase(
         query_manual=get_tool_query_manual_use_case(),
+        get_current_step=get_tool_get_current_step_use_case(),
         mark_step_complete=get_tool_mark_step_complete_use_case(),
         request_photo=get_tool_request_photo_use_case(),
         add_finding=get_tool_add_finding_use_case(),

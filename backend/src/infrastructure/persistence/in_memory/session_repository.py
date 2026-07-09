@@ -53,6 +53,25 @@ class InMemorySessionRepository:
                     return session
             return None
 
+    async def list_for_plant(
+        self,
+        *,
+        plant_id: str,
+        limit: int = 50,
+    ) -> list[MaintenanceSession]:
+        from infrastructure.persistence.in_memory.user_repository import InMemoryUserRepository
+
+        users = InMemoryUserRepository.shared()
+        async with self._lock:
+            matching: list[MaintenanceSession] = []
+            for session in self._sessions.values():
+                tech = await users.get_by_id(session.technician_id)
+                if tech is None or tech.plant_id != plant_id:
+                    continue
+                matching.append(session)
+            matching.sort(key=lambda s: s.started_at, reverse=True)
+            return matching[:limit]
+
     async def reset(self) -> None:
         async with self._lock:
             self._sessions.clear()

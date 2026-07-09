@@ -3,10 +3,10 @@
 from __future__ import annotations
 
 from application.dto.report import ReportOutput
+from application.services.session_access import resolve_session_for_user
 from application.use_cases.reports.build_live import BuildLiveReportUseCase
 from domain.entities.user import User
-from domain.exceptions import NotFoundError
-from domain.ports.repositories import IReportRepository, ISessionRepository
+from domain.ports.repositories import IReportRepository, ISessionRepository, IUserRepository
 
 
 class GetReportUseCase:
@@ -18,10 +18,12 @@ class GetReportUseCase:
         sessions: ISessionRepository,
         reports: IReportRepository,
         build_live: BuildLiveReportUseCase,
+        users: IUserRepository,
     ) -> None:
         self._sessions = sessions
         self._reports = reports
         self._build_live = build_live
+        self._users = users
 
     async def execute(
         self,
@@ -29,16 +31,12 @@ class GetReportUseCase:
         session_id: str,
         current_user: User,
     ) -> ReportOutput:
-        session = await self._sessions.get_by_id_for_technician(
-            session_id,
-            technician_id=current_user.id,
+        await resolve_session_for_user(
+            sessions=self._sessions,
+            users=self._users,
+            session_id=session_id,
+            current_user=current_user,
         )
-        if session is None:
-            raise NotFoundError(
-                code="SESSION_NOT_FOUND",
-                message="Sesión no encontrada.",
-                details={"id": session_id},
-            )
 
         report = await self._reports.get_by_session_id(session_id)
         if report is None:
